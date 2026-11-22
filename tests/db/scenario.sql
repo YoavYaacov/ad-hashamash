@@ -166,6 +166,29 @@ reset role;
 select t.ok((select state -> 'standings' from public.public_state) = 'null'::jsonb, 'next round resets screen to auto view');
 select t.ok((select sum(total) from private.team_totals((select v::uuid from t.ctx where k = 'inst'), true)) = 60, 'unrevealed points stay hidden');
 
+-- ── betting round: base, risky track, default track for teams that didn't bet ──
+update public.game_instances set current_round = 8;
+update public.rounds set phase = 'intro' where round_no = 8;
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a1', false);
+select public.host_round_action((select v::uuid from t.ctx where k = 'inst'), 8, 'open_betting');
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000c1', false);
+select t.fails($q$select public.team_place_bet('all')$q$, 'captain_only', 'only captain bets');
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000b1', false);
+select t.ok((public.team_place_bet('all') ->> 'base_points')::int = 100, 'bet base = avg floored to 100 (min 100)');
+select t.fails($q$select public.team_place_bet('nope')$q$, 'unknown_track', 'unknown track rejected');
+select t.ok(public.team_get_state() -> 'bet' ->> 'track_id' = 'all', 'team sees its bet');
+select t.ok((select position('assignment' in state::text) = 0 from public.public_state), 'bet puzzle answer not public');
+select t.ok((select state -> 'round' -> 'content' from public.public_state) = 'null'::jsonb, 'puzzle hidden during betting');
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a1', false);
+select public.host_round_action((select v::uuid from t.ctx where k = 'inst'), 8, 'lock_bets');
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000b2', false);
+select t.fails($q$select public.team_place_bet('mid')$q$, 'betting_closed', 'no bets after lock');
+reset role;
+select t.ok((select count(*) from public.bets where round_no = 8) = 3, 'every team has a bet after lock');
+select t.ok((select count(*) from public.bets where round_no = 8 and track_id = 'safe') = 2, 'non-betting teams got the safe track');
+select t.ok((select track_id from public.bets b join public.teams t2 on t2.id = b.team_id where t2.name = 'האריות') = 'all', 'chosen bet kept');
+
 -- ── reset (two-step) ──
 set role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000b1', false);
@@ -179,6 +202,7 @@ reset role;
 select t.ok((select count(*) from public.teams) = 0, 'reset: teams gone');
 select t.ok((select count(*) from public.team_devices) = 0, 'reset: devices gone');
 select t.ok((select count(*) from public.submissions) = 0, 'reset: submissions gone');
+select t.ok((select count(*) from public.bets) = 0, 'reset: bets gone');
 select t.ok((select count(*) from public.score_events) = 0, 'reset: scores gone');
 select t.ok((select count(*) from public.game_events where type <> 'demo_reset') = 0, 'reset: events gone');
 select t.ok((select status from public.game_instances) = 'setup', 'reset: instance back to setup');

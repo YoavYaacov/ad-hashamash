@@ -20,15 +20,21 @@ export default function Play() {
   const offset = useServerClock(client);
   const [team, setTeam] = useState<TeamState | null>(null);
 
+  // Sign in anonymously; on a flaky network keep retrying (with backoff) instead of getting stuck.
   useEffect(() => {
+    let cancelled = false;
     (async () => {
-      const { data } = await client.auth.getSession();
-      if (!data.session) {
+      for (let attempt = 0; !cancelled; attempt++) {
+        const { data } = await client.auth.getSession();
+        if (data.session) break;
         const { error } = await client.auth.signInAnonymously();
-        if (error) { setAuthErr(friendlyError(error)); return; }
+        if (!error) break;
+        setAuthErr(friendlyError(error));
+        await new Promise((r) => setTimeout(r, Math.min(10_000, 1500 * 2 ** attempt)));
       }
-      setReady(true);
+      if (!cancelled) { setAuthErr(''); setReady(true); }
     })();
+    return () => { cancelled = true; };
   }, []);
 
   const loadTeam = useCallback(async () => {

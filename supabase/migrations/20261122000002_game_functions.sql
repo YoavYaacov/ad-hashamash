@@ -136,7 +136,7 @@ end $$;
 
 -- Clock sync: clients estimate offset = server_now - (t0 + rtt/2).
 create or replace function public.server_time() returns timestamptz
-language sql stable as $$ select clock_timestamp(); $$;
+language sql stable set search_path = '' as $$ select clock_timestamp(); $$;
 grant execute on function public.server_time() to anon, authenticated;
 
 create or replace function public.am_i_host() returns boolean
@@ -155,6 +155,16 @@ returns jsonb language sql stable security definer set search_path = '' as $$
                      else (select count(*) from public.teams t where t.instance_id = gi.id and t.status = 'active') end)
   from public.game_instances gi where gi.status = 'in_progress';
 $$;
+
+-- Bet base for a round: average of all active teams' totals (incl. unrevealed rounds), rounded down to 100.
+create or replace function private.bet_base(p_instance uuid, p_round int)
+returns int language plpgsql stable security definer set search_path = '' as $$
+declare v_bet jsonb := private.round_setting(p_instance, p_round, 'bet'); v_avg numeric;
+begin
+  if v_bet ->> 'baseMethod' = 'fixed' then return (v_bet ->> 'fixedBase')::int; end if;
+  select avg(total) into v_avg from private.team_totals(p_instance, false);
+  return greatest(coalesce((v_bet ->> 'minBase')::int, 100), (floor(coalesce(v_avg, 0) / 100) * 100)::int);
+end $$;
 
 -- ───────────── host: lifecycle ─────────────
 
@@ -301,6 +311,19 @@ begin
            solution_payload = (select s.answer_key from private.task_secrets s where s.task_id = r.task_id)
      where instance_id = p_instance and round_no = p_round;
     update public.score_events set revealed = true where instance_id = p_instance and round_no = p_round;
+  elsif p_action = 'lock_bets' then
+    -- Teams that didn't choose are placed on the default (no-loss) track, so nobody is left out.
+    insert into public.bets (instance_id, round_no, team_id, track_id, base_points, total_before)
+    select p_instance, p_round, t.id,
+           coalesce(tt.settings -> 'bet' ->> 'defaultTrack',
+                    (select e ->> 'id' from jsonb_array_elements(tt.settings -> 'bet' -> 'tracks') e
+                      where (e ->> 'lossMultiplier')::numeric = 0 limit 1)),
+           private.bet_base(p_instance, p_round), tot.total
+    from public.teams t
+    join private.team_totals(p_instance, false) tot on tot.team_id = t.id
+    where t.instance_id = p_instance and t.status = 'active'
+      and not exists (select 1 from public.bets b where b.team_id = t.id and b.round_no = p_round);
+    update public.rounds set phase = 'bets_locked' where instance_id = p_instance and round_no = p_round;
   else
     update public.rounds set phase = v_target where instance_id = p_instance and round_no = p_round;
   end if;
@@ -487,6 +510,11 @@ begin
   select count(*) into v_count from public.teams where instance_id = gi.id and status = 'active';
   if v_count >= coalesce((gi.settings ->> 'max_teams')::int, 20) then raise exception 'too_many_teams'; end if;
 
+  -- PIN must be unique within the game, otherwise a 2nd phone could join the wrong team.
+  while exists (select 1 from public.teams where instance_id = gi.id and join_pin = v_pin) loop
+    v_pin := lpad((floor(random() * 10000))::int::text, 4, '0');
+  end loop;
+
   select coalesce(array_agg(m), '{}') into v_members
     from (select left(trim(x), 24) m from unnest(coalesce(p_members, '{}')) x where trim(x) <> '') s;
 
@@ -585,7 +613,6 @@ declare
   v_bet jsonb;
   v_base int;
   v_before int;
-  v_avg numeric;
 begin
   select * into td from public.team_devices where user_id = uid and instance_id = v_instance;
   if not found then raise exception 'not_in_team'; end if;
@@ -597,10 +624,7 @@ begin
   if not exists (select 1 from jsonb_array_elements(v_bet -> 'tracks') e where e ->> 'id' = p_track) then
     raise exception 'unknown_track';
   end if;
-  -- Base: average of ALL active teams' totals (incl. unrevealed rounds) rounded down to 100. Parametric.
-  select avg(total) into v_avg from private.team_totals(v_instance, false);
-  v_base := case when v_bet ->> 'baseMethod' = 'fixed' then (v_bet ->> 'fixedBase')::int
-                 else greatest(coalesce((v_bet ->> 'minBase')::int, 100), (floor(coalesce(v_avg, 0) / 100) * 100)::int) end;
+  v_base := private.bet_base(v_instance, r.round_no);
   select total into v_before from private.team_totals(v_instance, false) where team_id = td.team_id;
 
   insert into public.bets (instance_id, round_no, team_id, track_id, base_points, total_before)

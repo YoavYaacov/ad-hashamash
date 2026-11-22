@@ -1,7 +1,10 @@
 /**
- * Single place for branding. The name is NOT final — change it here only.
+ * Single place for branding. The name can still change at the last minute — edit it here only.
  */
-export const APP_NAME = 'חנוכיאדה LIVE';
+// Working name (with niqqud, so it reads as the shamash candle, not the sun). Change only here.
+export const APP_NAME = 'עַד הַשַּׁמָּשׁ';
+/** Plain-text version for places where niqqud renders poorly (browser tab title). */
+export const APP_NAME_PLAIN = 'עד השמש';
 export const FINALE_NAME = 'השַׁמָּשׁ';
 
 export const FONTS = ['Rubik', 'Heebo', 'Assistant', 'Secular One'] as const;

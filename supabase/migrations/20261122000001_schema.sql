@@ -110,6 +110,7 @@ create table public.teams (
 );
 create unique index teams_unique_name on public.teams (instance_id, lower(name));
 create index teams_instance_idx on public.teams (instance_id);
+create unique index teams_unique_pin on public.teams (instance_id, join_pin);
 
 create table public.team_devices (
   user_id uuid not null references auth.users (id) on delete cascade,
