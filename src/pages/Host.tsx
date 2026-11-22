@@ -4,15 +4,15 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import { getClient } from '../lib/supabase';
+import { useClient } from '../lib/clientContext';
 import { usePublicState, useServerClock } from '../lib/hooks';
 import { friendlyError } from '../lib/errors';
 import { Timer } from '../components/Timer';
 import { APP_NAME, FINALE_NAME } from '../config';
 
-const client = getClient('host');
 
 export default function Host() {
+  const client = useClient('host');
   const [session, setSession] = useState<Session | null>(null);
   const [isHost, setIsHost] = useState<boolean | null>(null);
 
@@ -33,6 +33,7 @@ export default function Host() {
 }
 
 function Login() {
+  const client = useClient('host');
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
   const [err, setErr] = useState('');
@@ -53,6 +54,7 @@ function Login() {
 interface Sub { id: number; team_id: string; item_index: number; attempt_no: number; status: string; ratio: number | null; payload: any; received_at: string }
 
 function Console() {
+  const client = useClient('host');
   const { state, version, conn } = usePublicState(client);
   const offset = useServerClock(client);
   const [templates, setTemplates] = useState<{ id: string; name: string; is_placeholder: boolean }[]>([]);
@@ -105,6 +107,12 @@ function Console() {
   const edge = (body: Record<string, unknown>) => client.functions.invoke('game', { body });
   const rpc = (fn: string, args: Record<string, unknown>) => client.rpc(fn, args);
   const ask = (text: string, run: () => Promise<void>) => setConfirm({ text, run });
+  // Notifications fade by themselves (errors stay a bit longer).
+  useEffect(() => {
+    if (!toast) return;
+    const id = setTimeout(() => setToast(null), toast.bad ? 5000 : 2200);
+    return () => clearTimeout(id);
+  }, [toast]);
   const teamName = (id: string) => teams.find((t) => t.id === id)?.name ?? '—';
 
   return (
@@ -280,6 +288,7 @@ function FinalsPanel({ finals, teamName, locked, onChoose }: { finals: any; team
 
 /** Two-step reset: server issues a 90-second token, then the host must type "איפוס". */
 function ResetButton({ instanceId, onDone, onError }: { instanceId: string; onDone: (t: string) => void; onError: (t: string) => void }) {
+  const client = useClient('host');
   const [token, setToken] = useState<string | null>(null);
   const [text, setText] = useState('');
   if (!token) return <button className="danger" onClick={async () => {

@@ -4,7 +4,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import QRCode from 'qrcode';
-import { getClient } from '../lib/supabase';
+import { useClient } from '../lib/clientContext';
 import { usePublicState, useServerClock } from '../lib/hooks';
 import type { PublicState, PublicTeam } from '../lib/types';
 import { Menorah } from '../components/Menorah';
@@ -12,18 +12,18 @@ import { Timer } from '../components/Timer';
 import { SymbolTile } from '../components/Symbols';
 import { APP_NAME, FINALE_NAME } from '../config';
 
-const client = getClient('screen');
 
 export default function Screen() {
+  const client = useClient('screen');
   const { state, conn } = usePublicState(client);
   const offset = useServerClock(client);
 
   return (
-    <div className="screen stage-16x9">
+    <div className="screen-wrap"><div className="screen stage-16x9">
       {conn !== 'live' && <div className="conn-badge" aria-live="polite">{conn === 'connecting' ? 'מתחבר…' : 'מתחבר מחדש…'}</div>}
       {state?.instance.mode === 'demo' && <div className="demo-badge">משחק ניסיון</div>}
       {!state ? <Splash /> : <Body s={state} offset={offset} />}
-    </div>
+    </div></div>
   );
 }
 
@@ -101,6 +101,7 @@ function TeamCloud({ teams }: { teams: PublicTeam[] }) {
 
 /** Poll submission progress while a round is live (cheap; avoids a Realtime message per answer). */
 function useProgress(active: boolean, fallback: { submitted_teams: number; total_teams: number }) {
+  const client = useClient('screen');
   const [p, setP] = useState(fallback);
   useEffect(() => {
     if (!active) { setP(fallback); return; }
@@ -213,16 +214,37 @@ function BetBoard({ s }: { s: PublicState }) {
   );
 }
 
+/** Shows the actual answers after reveal (only ever rendered from the revealed snapshot). */
 function Solution({ s }: { s: PublicState }) {
-  const sol = s.round?.solution;
+  const sol = s.round?.solution as any;
+  const c = (s.round?.content ?? {}) as any;
   if (!sol) return <div className="big-msg">הפתרון נחשף</div>;
-  let text = '';
+  let body: React.ReactNode = null;
   switch (sol.kind) {
-    case 'code_vault': text = `הקוד: ${sol.code}`; break;
-    case 'ordering': text = 'הסדר הנכון מוצג'; break;
-    default: text = 'הפתרון נחשף';
+    case 'code_vault': case 'finale':
+      body = sol.code ? <div className="sol-code" dir="ltr">{sol.code}</div> : <div className="sol-code">{sol.text?.canonical ?? sol.choice}</div>; break;
+    case 'sprint': case 'video_memory':
+      body = <ol className="sol-list">{sol.items.map((it: any, i: number) => (
+        <li key={i}><span className="q">{(c.questions ?? [])[i]?.text}</span><b>{'choice' in it ? it.choice : it.text.canonical}</b></li>))}</ol>; break;
+    case 'truth_or_fiction':
+      body = <ol className="sol-list">{sol.items.map((it: any, i: number) => (
+        <li key={i}><span className="q">ההמצאה:</span><b>{c.items?.[i]?.facts?.[Number(it.choice) - 1] ?? it.choice}</b></li>))}</ol>; break;
+    case 'three_pictures':
+      body = <ol className="sol-list">{sol.items.map((it: any, i: number) => <li key={i}><span className="q">מקצה {i + 1}:</span><b>תמונה {it.choice}</b></li>)}</ol>; break;
+    case 'symbols':
+      body = <ol className="sol-list">{sol.items.map((it: any, i: number) => <li key={i}><b>{it.text.canonical}</b></li>)}</ol>; break;
+    case 'ordering': {
+      const lbl = new Map((c.items ?? []).map((x: any) => [x.id, x.label]));
+      body = <ol className="sol-order">{sol.correct.map((id: string) => <li key={id}>{String(lbl.get(id) ?? id)}</li>)}</ol>; break;
+    }
+    case 'bet_puzzle':
+      body = <ul className="sol-list">{sol.assignment.map((j: number, i: number) => <li key={i}><span className="q">{c.people?.[i]}</span><b>{c.items?.[j]}</b></li>)}</ul>; break;
+    case 'sequence_memory':
+      body = <div className="sol-seq">{sol.stages[sol.stages.length - 1].map((id: string, i: number) => <SymbolTile key={i} id={id} size={64} />)}</div>; break;
+    case 'sliding_puzzle':
+      body = <div className="big-msg">הפאזל המלא</div>; break;
   }
-  return <div className="solution"><h3>{text}</h3></div>;
+  return <div className="solution"><h3>הפתרון</h3>{body}</div>;
 }
 
 function useRanked(s: PublicState) {

@@ -45,11 +45,16 @@ npm run test:db   # 66 בדיקות SQL: Postgres מקומי זמני + stub ש�
    - Edge Function: `supabase functions deploy game`
      (אופציונלי: `supabase secrets set ALLOWED_ORIGIN=https://your-site.pages.dev`).
    - Realtime: המיגרציה מוסיפה את `public_state` ל־publication.
-2. **אתר**: `cp .env.example .env` ולמלא URL ומפתח anon/publishable.
-   `npm ci && npm run build` → להעלות את `dist/` ל־**Cloudflare Pages** (הקובץ `public/_redirects` כבר מטפל בניתוב SPA).
+2. **אתר ב־GitHub Pages:** דוחפים לענף `main`, ו־GitHub Actions בונה ומפרסם לבד (`.github/workflows/deploy.yml`).
+   הגדרה חד־פעמית: Settings ← Pages ← Source: **GitHub Actions**.
+   הכתובות: `https://<user>.github.io/<repo>/screen`, `…/host`, `…/play`, והדגמה עם שרת מדומה ב־`…/demo/`.
+   פרטי החיבור הציבוריים לשרת נמצאים ב־`.env.production`. מפתח publishable מותר לחשיפה, כי ההרשאות נאכפות בשרת.
+   (חלופה: `npm run build` ולהעלות את `dist/` ל־Cloudflare Pages.)
 3. לפני כל אירוע: לבדוק בדשבורד שהפרויקט **לא מושהה** (פרויקט Free נעצר אחרי 7 ימים בלי פעילות).
 
 ## עקרונות שאסור לשבור
+
+- **הריפו ציבורי: תשובות אמיתיות לא נכנסות אליו לעולם.** תוכן החידות האמיתי מוזן ישירות למסד הנתונים, ל־`private.task_secrets`. בריפו יש רק תוכן דמה.
 
 - השרת הוא מקור האמת. ב־localStorage נשמר רק טוקן ההתחברות.
 - מפתחות תשובה נמצאים רק ב־`private.task_secrets` ומגיעים רק ל־Edge Function.

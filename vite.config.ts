@@ -1,7 +1,8 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
-// https://vite.dev/config/
+// BASE_PATH lets the same build run at a domain root (Cloudflare) or under /<repo>/ (GitHub Pages).
 export default defineConfig({
+  base: process.env.BASE_PATH ?? '/',
   plugins: [react()],
 })

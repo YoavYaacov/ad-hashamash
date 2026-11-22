@@ -1,0 +1,29 @@
+/* Demo shell only. */
+.demo-shell { min-height: 100vh; padding: .6rem; display: flex; flex-direction: column; gap: .6rem; max-width: 1500px; margin: 0 auto; }
+.demo-top { display: flex; flex-wrap: wrap; gap: .4rem 1rem; align-items: baseline; }
+.demo-top b { color: var(--gold); font-size: 1.2rem; }
+.demo-note { color: var(--muted); font-size: .85rem; }
+.demo-tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: .3rem; background: var(--night-2); padding: .3rem; border-radius: 14px; position: sticky; top: 0; z-index: 50; }
+.demo-tabs button { min-height: 44px; padding: .4rem; font-size: .95rem; background: transparent; }
+.demo-tabs button.on { background: var(--gold); color: var(--night); font-weight: 800; }
+.demo-helpers { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; font-size: .85rem; color: var(--muted); }
+.demo-helpers button { min-height: 38px; padding: .3rem .8rem; font-size: .85rem; border: 1px solid var(--night-3); }
+.demo-toast { position: fixed; bottom: 1rem; inset-inline: 1rem; z-index: 100; background: var(--gold); color: var(--night); font-weight: 800; text-align: center; padding: .7rem; border-radius: 12px; }
+.demo-label { color: var(--muted); font-size: .8rem; margin-bottom: .3rem; }
+.screen-frame .screen-wrap { width: 100%; height: auto; aspect-ratio: 16 / 9; border-radius: 12px; overflow: hidden; box-shadow: 0 0 0 2px var(--night-3); }
+.phone-frame { height: min(78vh, 760px); overflow: auto; border-radius: 26px; border: 6px solid #22284e; background: var(--night); transform: translateZ(0); }
+.phone-frame .play, .phone-frame .host { min-height: 100%; }
+.demo-guide { background: var(--night-2); border-radius: 14px; padding: .6rem 1rem; font-size: .95rem; }
+.demo-guide summary { color: var(--gold); font-weight: 700; cursor: pointer; }
+.demo-guide li { margin: .25rem 0; }
+
+/* Mobile: one view at a time (all stay mounted so nothing resets). */
+.demo-pane:not([data-active='true']) { display: none; }
+
+/* Wide screens: everything at once. */
+@media (min-width: 1100px) {
+  .demo-tabs { display: none; }
+  .demo-stage { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+  .demo-pane { display: block !important; }
+  .pane-screen { grid-column: 1 / -1; max-width: 1000px; justify-self: center; width: 100%; }
+}

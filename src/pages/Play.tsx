@@ -3,7 +3,8 @@
  * Identity = anonymous Supabase session (survives refresh). All state comes from the server.
  */
 import { useCallback, useEffect, useState } from 'react';
-import { getClient } from '../lib/supabase';
+import { useSearchParams } from 'react-router-dom';
+import { useClient } from '../lib/clientContext';
 import { usePublicState, useServerClock } from '../lib/hooks';
 import { friendlyError } from '../lib/errors';
 import type { PublicState, TeamState } from '../lib/types';
@@ -11,9 +12,9 @@ import { Timer } from '../components/Timer';
 import { APP_NAME, FINALE_NAME } from '../config';
 import { TaskInput } from '../tasks/TaskInput';
 
-const client = getClient('play');
 
 export default function Play() {
+  const client = useClient('play');
   const [ready, setReady] = useState(false);
   const [authErr, setAuthErr] = useState('');
   const { state, version, conn } = usePublicState(client);
@@ -71,7 +72,8 @@ function Shell({ children, conn, teamName, color, demo }: { children: React.Reac
 }
 
 function Register({ s, onDone }: { s: PublicState; onDone: () => void }) {
-  const params = new URLSearchParams(location.search);
+  const client = useClient('play');
+  const [params] = useSearchParams();
   const [code, setCode] = useState(params.get('code') ?? '');
   const [mode, setMode] = useState<'new' | 'join'>('new');
   const [name, setName] = useState('');
@@ -123,6 +125,7 @@ function Register({ s, onDone }: { s: PublicState; onDone: () => void }) {
 }
 
 function InGame({ s, team, offset, onChange }: { s: PublicState; team: TeamState; offset: number; onChange: () => void }) {
+  const client = useClient('play');
   const t = team.team!;
   if (t.status !== 'active') return <p className="muted">הקבוצה הוסרה מהמשחק. פנו למנחה.</p>;
   const r = s.round;
