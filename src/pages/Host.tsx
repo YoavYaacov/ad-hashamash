@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { useClient } from '../lib/clientContext';
-import { usePublicState, useServerClock } from '../lib/hooks';
+import { usePublicState, useServerClock, useAutoStandings, useTick } from '../lib/hooks';
 import { friendlyError } from '../lib/errors';
 import { Timer } from '../components/Timer';
 import { APP_NAME, FINALE_NAME } from '../config';
@@ -166,6 +166,15 @@ function Console() {
           <h2>{r.is_finale ? FINALE_NAME : `סבב ${r.no} / 8`} · {r.title}</h2>
           <div className="phase">שלב: <b>{PHASES[r.phase] ?? r.phase}</b> · {new Set(subs.filter((x) => x.status !== 'late').map((x) => x.team_id)).size}/{r.progress.total_teams} שלחו</div>
           {(r.phase === 'open' || r.phase === 'paused') && <Timer endsAt={r.ends_at} pausedMs={r.paused_remaining_ms} offset={offset} total={r.duration_sec} />}
+          {r.kind === 'three_pictures' && ['open', 'paused', 'closed', 'graded'].includes(r.phase) && (
+            <div className="heat-picker">
+              <span>על המסך:</span>
+              {Array.from({ length: r.item_count }, (_, i) => (
+                <button key={i} className={(r.screen_item ?? 0) === i ? 'on' : ''}
+                        onClick={() => act(() => rpc('host_set_screen_item', { p_instance: inst.id, p_item: i }))}>מקצה {i + 1}</button>
+              ))}
+            </div>
+          )}
           <div className="big-buttons">
             {r.phase === 'intro' && r.kind === 'bet_puzzle' && <button className="primary" disabled={busy} onClick={() => act(() => rpc('host_round_action', { p_instance: inst.id, p_round: r.no, p_action: 'open_betting' }))}>פתיחת הימורים</button>}
             {r.phase === 'betting' && <button className="primary" disabled={busy} onClick={() => act(() => rpc('host_round_action', { p_instance: inst.id, p_round: r.no, p_action: 'lock_bets' }), 'ההימורים ננעלו')}>נעילת הימורים</button>}
@@ -183,9 +192,9 @@ function Console() {
             {r.phase === 'graded' && <button className="go" disabled={busy} onClick={() => ask('לחשוף פתרון וניקוד של הסבב?', async () => { await act(() => rpc('host_round_action', { p_instance: inst.id, p_round: r.no, p_action: 'reveal' }), 'נחשף'); })}>חשיפת פתרון וניקוד</button>}
             {['revealed'].includes(r.phase) && (
               <>
-                <button onClick={() => act(() => rpc('host_set_screen_view', { p_instance: inst.id, p_view: inst.screen_view === 'standings' ? 'auto' : 'standings' }))}>
-                  {inst.screen_view === 'standings' ? 'הסתרת הטבלה' : 'הצגת טבלת דירוג'}
-                </button>
+                <StandingsControl inst={inst} r={r} offset={offset}
+                  onShow={() => act(() => rpc('host_set_screen_view', { p_instance: inst.id, p_view: 'standings' }))}
+                  onPin={() => act(() => rpc('host_pin_solution', { p_instance: inst.id, p_pin: true }))} />
                 {r.no === 8 && !finals && <button className="primary" disabled={busy} onClick={() => act(() => edge({ action: 'compute_finals', instance_id: inst.id }), 'חלופות הגמר חושבו')}>חישוב חלופות גמר</button>}
                 {r.no < 9 && <button className="go" disabled={busy || (r.no === 8 && !finals)} onClick={() => act(() => rpc('host_next_round', { p_instance: inst.id }))}>{r.no === 8 ? `מעבר ל${FINALE_NAME}` : 'לסבב הבא'}</button>}
                 {r.no === 9 && <button className="go" disabled={busy} onClick={() => ask('לסיים את המשחק ולהכריז על האלופה?', async () => { await act(() => rpc('host_finish_game', { p_instance: inst.id }), 'המשחק הסתיים'); })}>סיום והכרזה</button>}
@@ -256,6 +265,22 @@ function Console() {
         </div>
       )}
     </div>
+  );
+}
+
+/** After a reveal the screen switches to the top-5 table by itself after 15 s; the host can keep the solution or jump now. */
+function StandingsControl({ inst, r, offset, onShow, onPin }: { inst: { screen_view: string }; r: { phase: string; revealed_at: string | null; pin_solution: boolean }; offset: number; onShow: () => void; onPin: () => void }) {
+  useTick(500);
+  const { show, due } = useAutoStandings(r, offset);
+  const showing = inst.screen_view === 'standings' || show;
+  if (showing) return <><p className="muted small">על המסך: טבלת חמש המובילות</p><button onClick={onPin}>חזרה לפתרון</button></>;
+  if (r.pin_solution) return <><p className="muted small">הפתרון נשאר על המסך</p><button onClick={onShow}>הצגת טבלת דירוג</button></>;
+  const left = due ? Math.max(0, Math.ceil((due - (Date.now() + offset)) / 1000)) : 0;
+  return (
+    <>
+      <p className="muted small">הטבלה תופיע אוטומטית בעוד {left} שניות</p>
+      <div className="row"><button className="grow" onClick={onShow}>להציג עכשיו</button><button className="grow ghost" onClick={onPin}>להשאיר את הפתרון</button></div>
+    </>
   );
 }
 

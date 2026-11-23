@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import QRCode from 'qrcode';
 import { useClient } from '../lib/clientContext';
-import { usePublicState, useServerClock } from '../lib/hooks';
+import { usePublicState, useServerClock, useAutoStandings } from '../lib/hooks';
 import type { PublicState, PublicTeam } from '../lib/types';
 import { Menorah } from '../components/Menorah';
 import { Timer } from '../components/Timer';
@@ -13,6 +13,7 @@ import { SymbolTile } from '../components/Symbols';
 import { APP_NAME, FINALE_NAME } from '../config';
 import { Scene } from '../components/Scene';
 import { Swap } from '../components/Swap';
+import { SafeArt } from '../components/Safe';
 import type { SceneSpec } from '../content/scenes';
 
 
@@ -33,32 +34,33 @@ export default function Screen() {
   const client = useClient('screen');
   const { state, conn } = usePublicState(client);
   const offset = useServerClock(client);
+  const auto = useAutoStandings(state?.round, offset);
 
   return (
     <div className="screen-wrap"><div className="screen stage-16x9">
       <Embers />
       {conn !== 'live' && <div className="conn-badge" aria-live="polite">{conn === 'connecting' ? 'מתחבר…' : 'מתחבר מחדש…'}</div>}
       {state?.instance.mode === 'demo' && <div className="demo-badge">משחק ניסיון</div>}
-      <Swap k={viewKey(state)} className="screen-swap"><Body s={state} offset={offset} /></Swap>
+      <Swap k={viewKey(state, auto.show)} className="screen-swap"><Body s={state} offset={offset} autoStandings={auto.show} /></Swap>
     </div></div>
   );
 }
 
 /** Which "screen" is showing: changing it triggers the fade-out → fade-in sequence. */
-function viewKey(s: PublicState | null): string {
+function viewKey(s: PublicState | null, autoStandings = false): string {
   if (!s) return 'lobby';
   const { status, screen_view } = s.instance;
   if (status === 'finished' || screen_view === 'final_results') return 'final';
-  if (screen_view === 'standings') return `standings-${s.round?.no}`;
+  if (screen_view === 'standings' || (autoStandings && s.standings)) return `standings-${s.round?.no}`;
   if (status === 'in_progress' && s.round) return `round-${s.round.no}`;
   return 'lobby';
 }
 
-function Body({ s, offset }: { s: PublicState | null; offset: number }) {
+function Body({ s, offset, autoStandings }: { s: PublicState | null; offset: number; autoStandings: boolean }) {
   if (!s) return <Lobby s={null} />;
   const { status, screen_view } = s.instance;
   if (status === 'finished' || screen_view === 'final_results') return <FinalResults key="final" s={s} />;
-  if (screen_view === 'standings') return <Standings key={`st-${s.round?.no}`} s={s} />;
+  if (screen_view === 'standings' || (autoStandings && s.standings)) return <Standings key={`st-${s.round?.no}`} s={s} />;
   if (status === 'in_progress' && s.round) return <RoundView key={`r-${s.round.no}`} s={s} offset={offset} />;
   return <Lobby s={s} />;
 }
@@ -189,9 +191,12 @@ function ScreenContent({ s }: { s: PublicState }) {
   switch (r.kind) {
     case 'code_vault':
       return (
+        <div className="vault-screen">
         <div className="clue-grid">
           {(c.clues ?? []).map((cl: any) => <div key={cl.label} className="clue"><b>{cl.label}</b><p>{cl.text}</p></div>)}
           {c.order_clue && <div className="clue order"><b>סדר</b><p>{c.order_clue}</p></div>}
+        </div>
+        <SafeArt state="closed" />
         </div>
       );
     case 'symbols':
@@ -216,7 +221,7 @@ function ScreenContent({ s }: { s: PublicState }) {
     case 'ordering':
       return <div className="order-items">{(c.items ?? []).map((it: any) => <div key={it.id} className="order-item">{it.label}</div>)}</div>;
     case 'three_pictures':
-      return <PictureHeats heats={c.heats ?? []} />;
+      return <PictureHeats heats={c.heats ?? []} item={r.screen_item ?? 0} />;
     case 'bet_puzzle':
       return (
         <div className="bet-puzzle">
@@ -258,7 +263,9 @@ function Solution({ s }: { s: PublicState }) {
   if (!sol) return <div className="big-msg">הפתרון נחשף</div>;
   let body: React.ReactNode = null;
   switch (sol.kind) {
-    case 'code_vault': case 'finale':
+    case 'code_vault':
+      body = <div className="vault-screen" style={{ gridTemplateColumns: 'auto auto', justifyContent: 'center' }}><div className="sol-code" dir="ltr">{sol.code}</div><SafeArt state="open" digits={sol.code} /></div>; break;
+    case 'finale':
       body = sol.code ? <div className="sol-code" dir="ltr">{sol.code}</div> : <div className="sol-code">{sol.text?.canonical ?? sol.choice}</div>; break;
     case 'sprint': case 'video_memory':
       body = <ol className="sol-list">{sol.items.map((it: any, i: number) => (
@@ -331,26 +338,23 @@ function FinalResults({ s }: { s: PublicState }) {
   );
 }
 
-/** One heat at a time, large; rotates every 20 s with an indicator (phones show all heats). */
-function PictureHeats({ heats }: { heats: { pictures: SceneSpec[] }[] }) {
-  const [k, setK] = useState(0);
-  useEffect(() => {
-    if (heats.length < 2) return;
-    const id = setInterval(() => setK((x) => (x + 1) % heats.length), 20_000);
-    return () => clearInterval(id);
-  }, [heats.length]);
+/** One heat at a time, large. The HOST chooses which heat is shown (no automatic rotation). */
+function PictureHeats({ heats, item }: { heats: { title?: string; pictures: SceneSpec[] }[]; item: number }) {
+  const k = Math.min(Math.max(0, item), heats.length - 1);
   const h = heats[k];
   if (!h) return null;
   return (
-    <div style={{ width: '100%' }}>
-      <div className="heat-label">מקצה {k + 1} מתוך {heats.length}
+    <div className="heat-view">
+      <div className="heat-label">מקצה {k + 1} מתוך {heats.length}{h.title ? ` · ${h.title}` : ''}
         <span className="heat-dots">{heats.map((_, i) => <i key={i} className={i === k ? 'on' : ''} />)}</span>
       </div>
-      <div className="pictures-real enter" key={k}>
-        {h.pictures.map((p, j) => (
-          <figure key={j}><Scene s={p} label={`מקצה ${k + 1}, תמונה ${['א', 'ב', 'ג'][j]}`} /><figcaption>{['א', 'ב', 'ג'][j]}</figcaption></figure>
-        ))}
-      </div>
+      <Swap k={`heat-${k}`} className="heat-swap">
+        <div className="pictures-wide">
+          {h.pictures.map((p, j) => (
+            <figure key={j}><Scene s={p} label={`מקצה ${k + 1}, תמונה ${['א', 'ב', 'ג'][j]}`} /><figcaption>{['א', 'ב', 'ג'][j]}</figcaption></figure>
+          ))}
+        </div>
+      </Swap>
     </div>
   );
 }

@@ -17,6 +17,9 @@ export interface PublicRound {
   opened_at: string | null;
   ends_at: string | null;
   paused_remaining_ms: number | null;
+  revealed_at: string | null;
+  screen_item: number;
+  pin_solution: boolean;
   content: Record<string, any> | null;
   bet_tracks: { id: string; label: string; winMultiplier: number; lossMultiplier: number }[] | null;
   solution: Record<string, any> | null;

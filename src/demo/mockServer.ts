@@ -17,7 +17,8 @@ const nowIso = () => new Date().toISOString();
 interface Task { id: string; kind: string; title: string; instructions: string; public_content: Json; assets: Json; duration_sec: number;
   scoring: Scoring; attempts_limit: number | null; submission_policy: string; settings: Json; }
 interface Round { round_no: number; task_id: string; phase: string; item_count: number; opened_at: string | null; ends_at: string | null;
-  paused_remaining_ms: number | null; public_payload: Json; solution_payload: Json; finalists: string[] | null }
+  paused_remaining_ms: number | null; public_payload: Json; solution_payload: Json; finalists: string[] | null;
+  revealed_at?: string | null; screen_item?: number; pin_solution?: boolean }
 interface Team { id: string; name: string; color: string; members: string[]; status: string; created_at: number; bot?: boolean; transfer?: string }
 interface Device { user_id: string; team_id: string; role: 'captain' | 'member' }
 interface Sub { id: number; round_no: number; team_id: string; item_index: number; attempt_no: number; payload: Json; submitted_by: string;
@@ -81,6 +82,7 @@ export class MockServer {
       round = {
         no: r.round_no, is_finale: r.round_no === 9, phase: r.phase, kind: tt.kind, title: tt.title, instructions: tt.instructions,
         duration_sec: tt.duration_sec, item_count: r.item_count, opened_at: r.opened_at, ends_at: r.ends_at, paused_remaining_ms: r.paused_remaining_ms,
+        revealed_at: r.revealed_at ?? null, screen_item: r.screen_item ?? 0, pin_solution: !!r.pin_solution,
         content: ['open', 'paused', 'closed', 'graded', 'revealed', 'done'].includes(r.phase) ? r.public_payload : null,
         bet_tracks: tt.kind === 'bet_puzzle' ? tt.settings.bet.tracks : null,
         solution: ['revealed', 'done'].includes(r.phase) ? r.solution_payload : null,
@@ -90,7 +92,8 @@ export class MockServer {
       };
     }
     const tot = this.totals(true);
-    const standings = ['standings', 'final_results'].includes(gi.screen_view)
+    const cr = gi.current_round ? this.round(gi.current_round) : null;
+    const standings = (['standings', 'final_results'].includes(gi.screen_view) || (cr && ['revealed', 'done'].includes(cr.phase) && !cr.pin_solution))
       ? tot.map((x) => ({ ...x, rank: 1 + tot.filter((y) => y.total > x.total).length })).filter((x) => x.rank <= 5).sort((a, b) => b.total - a.total) : null;
     const f = this.finals?.chosen_option ? {
       chosen_option: this.finals.chosen_option,
@@ -164,6 +167,12 @@ export class MockServer {
         this.finals!.chosen_option = a.p_option; this.refresh(); return null;
       }
       case 'host_set_screen_view': this.requireHost(uid); this.inst!.screen_view = a.p_view; this.refresh(); return null;
+      case 'host_set_screen_item': { this.requireHost(uid); const r = this.round(this.inst!.current_round); r.screen_item = Math.max(0, Math.min(a.p_item, r.item_count - 1)); this.refresh(); return null; }
+      case 'host_pin_solution': {
+        this.requireHost(uid); this.round(this.inst!.current_round).pin_solution = !!a.p_pin;
+        if (a.p_pin && this.inst!.screen_view === 'standings') this.inst!.screen_view = 'auto';
+        this.refresh(); return null;
+      }
       case 'host_finish_game': {
         this.requireHost(uid);
         if (this.round(9).phase !== 'revealed') fail('reveal_finale_first');
@@ -176,7 +185,7 @@ export class MockServer {
         this.requireHost(uid);
         if (a.p_confirm_text !== 'איפוס') fail('confirmation_text_mismatch');
         this.teams = []; this.devices = []; this.subs = []; this.bets = []; this.scores = []; this.finals = null;
-        this.rounds.forEach((r) => Object.assign(r, { phase: 'pending', opened_at: null, ends_at: null, paused_remaining_ms: null, public_payload: null, solution_payload: null, finalists: null }));
+        this.rounds.forEach((r) => Object.assign(r, { phase: 'pending', opened_at: null, ends_at: null, paused_remaining_ms: null, public_payload: null, solution_payload: null, finalists: null, revealed_at: null, screen_item: 0, pin_solution: false }));
         Object.assign(this.inst!, { status: 'setup', current_round: null, screen_view: 'auto' });
         this.refresh(); return null;
       }
@@ -237,7 +246,7 @@ export class MockServer {
     } else if (action === 'close') {
       Object.assign(r, { phase: 'closed', ends_at: new Date(Math.min(r.ends_at ? Date.parse(r.ends_at) : now, now)).toISOString(), paused_remaining_ms: null });
     } else if (action === 'reveal') {
-      Object.assign(r, { phase: 'revealed', solution_payload: this.secrets[r.task_id] });
+      Object.assign(r, { phase: 'revealed', solution_payload: this.secrets[r.task_id], revealed_at: new Date().toISOString(), pin_solution: false });
       this.scores.filter((s) => s.round_no === no).forEach((s) => (s.revealed = true));
     } else if (action === 'lock_bets') {
       const base = this.betBase(r), tot = this.totals(false);

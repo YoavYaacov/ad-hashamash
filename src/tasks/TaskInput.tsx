@@ -3,11 +3,13 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { uuid } from '../lib/uuid';
 import type { PublicState, TeamState } from '../lib/types';
 import { submitAnswer, type SubmitResult } from '../lib/submit';
 import { friendlyError } from '../lib/errors';
 import { SymbolTile } from '../components/Symbols';
 import { Scene } from '../components/Scene';
+import { SafeArt, type SafeState } from '../components/Safe';
 import type { SceneSpec } from '../content/scenes';
 import { isSolved, moveTile, neighbors, type Board } from '../../supabase/functions/_shared/engine/slidingPuzzle.ts';
 
@@ -25,7 +27,7 @@ function useSubmitter(client: SupabaseClient, onChange: () => void) {
 
   const send = async (item: number, payload: unknown): Promise<SubmitResult | null> => {
     const key = `${item}:${JSON.stringify(payload)}`;
-    if (!pending.current.has(key)) pending.current.set(key, crypto.randomUUID());
+    if (!pending.current.has(key)) pending.current.set(key, uuid());
     setBusy(item); setMsg(null);
     const res = await submitAnswer(client, item, payload, pending.current.get(key));
     setBusy(null);
@@ -73,21 +75,40 @@ const Feedback = ({ m, item }: { m: ReturnType<typeof useSubmitter>['msg']; item
 const submittedItems = (subs: CP['subs']) => new Set(subs.filter((x) => x.status !== 'late').map((x) => x.item_index));
 const solvedItems = (subs: CP['subs']) => new Set(subs.filter((x) => x.correct === true).map((x) => x.item_index));
 
-// ── 4: vault ──
-function CodeInput({ client, s, subs, canSubmit, onChange }: CP) {
+// ── 4: vault — a real safe: keypad, shake on a wrong code, door swings open on the right one ──
+function CodeInput({ client, subs, canSubmit, onChange }: CP) {
   const [code, setCode] = useState('');
-  const { busy, msg, send } = useSubmitter(client, onChange);
+  const [state, setState] = useState<SafeState>('closed');
+  const [status, setStatus] = useState('');
+  const { busy, send } = useSubmitter(client, onChange);
   const solved = solvedItems(subs).has(0);
-  const used = subs.filter((x) => x.item_index === 0).length;
-  if (solved) return <p className="center-msg ok">הכספת נפתחה! ✓</p>;
+  const used = subs.filter((x) => x.item_index === 0 && x.status !== 'late').length;
+  const left = Math.max(0, 3 - used);
+  const press = (d: string) => { if (busy !== null || state === 'open') return; tap(); setState('closed'); setStatus(''); setCode((c) => (c.length < 4 ? c + d : c)); };
+  const open = async () => {
+    if (code.length !== 4) return;
+    tap();
+    const res = await send(0, { code });
+    if (res?.correct === true) { setState('open'); vibrateLong(); setStatus('הכספת נפתחה!'); }
+    else if (res?.correct === false) {
+      setState('fail'); setStatus(res.attempts_left ? `קוד שגוי. נשארו ${res.attempts_left} ניסיונות.` : 'קוד שגוי. הכספת ננעלה.');
+      setTimeout(() => { setState('closed'); setCode(''); }, 900);
+    }
+  };
+  if (solved || state === 'open') {
+    return <div className="vault-phone"><SafeArt state="open" digits={code} size={230} /><p className="ok vault-status">הכספת נפתחה! ✓</p></div>;
+  }
+  if (left === 0) return <div className="vault-phone"><SafeArt state="closed" size={200} /><p className="center-msg">הכספת ננעלה. נשארו 0 ניסיונות.</p></div>;
   return (
-    <div className="task code">
-      <p className="muted">הקלידו את הקוד בן 4 הספרות. ניסיונות שנוצלו: {used}</p>
-      <input className="code-input" dir="ltr" inputMode="numeric" maxLength={4} value={code}
-             onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} aria-label="קוד" disabled={!canSubmit} />
-      <button className="primary" disabled={!canSubmit || code.length !== 4 || busy !== null} onClick={() => send(0, { code })}>פותחים את הכספת</button>
-      <Feedback m={msg} item={0} />
-      {s.round?.content?.order_clue && <p className="hint">רמז הסדר מופיע על המסך</p>}
+    <div className="vault-phone">
+      <SafeArt state={state} digits={code} size={190} />
+      <p className={`vault-status ${state === 'fail' ? 'error' : 'muted'}`} role="status">{status || `ניסיונות שנותרו: ${left}`}</p>
+      <div className="keypad" dir="ltr">
+        {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((d) => <button key={d} disabled={!canSubmit} onClick={() => press(d)}>{d}</button>)}
+        <button className="del" aria-label="מחיקה" disabled={!canSubmit || !code} onClick={() => { tap(); setCode((c) => c.slice(0, -1)); }}>⌫</button>
+        <button disabled={!canSubmit} onClick={() => press('0')}>0</button>
+        <button className="ok" aria-label="פתיחה" disabled={!canSubmit || code.length !== 4 || busy !== null} onClick={open}>{busy !== null ? '…' : 'פתח'}</button>
+      </div>
     </div>
   );
 }
@@ -139,7 +160,7 @@ function ChoiceItems({ client, s, subs, canSubmit, onChange }: CP) {
     r.kind === 'truth_or_fiction'
       ? (c.items ?? []).map((it: any) => ({ title: 'איזו עובדה מומצאת?', options: it.facts.map((f: string, i: number) => ({ value: String(i + 1), label: f })) }))
       : r.kind === 'three_pictures'
-      ? (c.heats ?? []).map((h: any) => ({ title: 'באיזו תמונה הכי הרבה חריגים?', pictures: h.pictures,
+      ? (c.heats ?? []).map((h: any) => ({ title: 'באיזו תמונה הכי הרבה הבדלים?', pictures: h.pictures,
           options: (c.choices ?? ['א', 'ב', 'ג']).map((x: string) => ({ value: x, label: `תמונה ${x}` })) }))
       : (c.questions ?? []).map((q: any) => ({ title: q.text, options: q.options.map((o: string) => ({ value: o, label: o })) }));
   const unit = r.kind === 'truth_or_fiction' ? 'סט' : r.kind === 'three_pictures' ? 'מקצה' : 'שאלה';
@@ -188,21 +209,36 @@ function ChoiceItems({ client, s, subs, canSubmit, onChange }: CP) {
         ))}
       </div>
       <section className="item pager-page" key={idx}>
-        <h3>{it.title}</h3>
-        {it.pictures && (
-          <div className="thumbs">
-            {it.pictures.map((p, j) => <figure key={j} onClick={() => setZoom(p)}><Scene s={p} label={`תמונה ${HEB[j]}`} /><figcaption>{HEB[j]}</figcaption></figure>)}
+        {!it.pictures && <h3>{it.title}</h3>}
+        {it.pictures ? (
+          // All three pictures at once (wide panoramas) — tap a picture to choose it.
+          <div className={`pic-stack ${locked ? 'locked' : ''}`}>
+            {it.pictures.map((p, j) => {
+              const v = it.options[j]?.value ?? HEB[j];
+              return (
+                <div key={j} className={`pic-choice ${picked[idx] === v ? 'chosen' : ''}`}>
+                  <span className="pic-letter" aria-hidden="true">{HEB[j]}</span>
+                  <button className="pic-btn" disabled={!canSubmit || locked || sending} onClick={() => choose(v)} aria-label={`בחירה: תמונה ${HEB[j]}`}>
+                    <Scene s={p} label={`תמונה ${HEB[j]}`} />
+                  </button>
+                  <button className="pic-zoom" aria-label={`הגדלת תמונה ${HEB[j]}`} onClick={() => setZoom(p)}>
+                    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="10" cy="10" r="6.5" fill="none" stroke="currentColor" strokeWidth="2.4" /><path d="M15 15l5.5 5.5" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" /></svg>
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className={`options ${locked ? 'locked' : ''}`}>
+            {it.options.map((o) => (
+              <button key={o.value} className={`option ${picked[idx] === o.value ? 'chosen' : ''}`}
+                      disabled={!canSubmit || locked || sending} onClick={() => choose(o.value)}>{o.label}</button>
+            ))}
           </div>
         )}
-        <div className={`options ${locked ? 'locked' : ''}`}>
-          {it.options.map((o) => (
-            <button key={o.value} className={`option ${picked[idx] === o.value ? 'chosen' : ''}`}
-                    disabled={!canSubmit || locked || sending} onClick={() => choose(o.value)}>{o.label}</button>
-          ))}
-        </div>
       </section>
       <div className="pager-footer">
-        <div className="row pager-arrows">
+        <div className={`row pager-arrows ${it.pictures ? 'hide' : ''}`}>
           <button className="ghost small" disabled={idx === 0} onClick={() => setIdx(idx - 1)}>→ הקודם</button>
           <span className="muted">{answered} מתוך {items.length} נבחרו</span>
           <button className="ghost small" disabled={idx === items.length - 1} onClick={() => setIdx(idx + 1)}>הבא ←</button>

@@ -21,10 +21,14 @@ describe('trial content is self-consistent', () => {
     expect(gradeItem(t.answer_key, 4, { text: 'יהודה' }).correct).toBe(false);
   });
 
-  it('vault arithmetic: 9,5,6,7 → order clue gives 5976', () => {
-    const digits = { a: 2 + 3 + 4, b: 5, c: 5 + 1, d: 8 - 1 };
-    const rest = [digits.a, digits.c, digits.d].sort((x, y) => y - x);
-    expect([digits.b, ...rest].join('')).toBe(task('demo-vault').answer_key.code);
+  it('vault riddles: ה=9, פ=5, נ=6, ג=4 → dreidel order נ-ג-ה-פ gives 6495', () => {
+    const he = 2 + 3 + 4;                                                    // nights 2,3,4
+    const pe = 5;                                                            // sons of Mattathias
+    const nun = [1, 2, 3, 4, 5, 6, 7, 8].find((n) => n + 1 === pe + 2)!;     // candles + shamash = 7
+    const gimel = [1, 2, 3, 4, 5, 6, 7, 8].filter((n) => n % 2 === 0).length; // even nights
+    const t = task('demo-vault');
+    expect(t.public_content.clues.map((c: any) => c.label)).toEqual(['ה', 'פ', 'נ', 'ג']); // shown scrambled
+    expect([nun, gimel, he, pe].join('')).toBe(t.answer_key.code);
   });
 
   it('finale arithmetic: 6 × 4 + 25 = 49', () => {
@@ -82,6 +86,7 @@ describe('trial content is self-consistent', () => {
       }
       expect(t.answer_key.items[i].choice).toBe(['א', 'ב', 'ג'][heatAnswer(h)]);
       expect(t.public_content.heats[i].pictures).toEqual(pics);
+      expect(new Set(t.public_content.heats.map((x: any) => x.pictures[0].type)).size).toBe(3); // a different scene per heat
     });
   });
 

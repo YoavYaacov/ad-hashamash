@@ -109,3 +109,20 @@ export function remainingMs(endsAt: string | null, pausedMs: number | null, offs
   if (!endsAt) return null;
   return Math.max(0, Date.parse(endsAt) - (Date.now() + offset));
 }
+
+export const AUTO_STANDINGS_MS = 15_000;
+
+/** True once the automatic "solution → top-5 table" switch is due (server time based). */
+export function useAutoStandings(round: { phase: string; revealed_at: string | null; pin_solution: boolean } | null | undefined, offset: number) {
+  const due = round && ['revealed', 'done'].includes(round.phase) && !round.pin_solution && round.revealed_at
+    ? Date.parse(round.revealed_at) + AUTO_STANDINGS_MS : null;
+  const [now, setNow] = useState(() => Date.now() + offset);
+  useEffect(() => {
+    if (due == null) return;
+    const wait = due - (Date.now() + offset);
+    if (wait <= 0) { setNow(Date.now() + offset); return; }
+    const t = setTimeout(() => setNow(Date.now() + offset), wait + 50);
+    return () => clearTimeout(t);
+  }, [due, offset]);
+  return { show: due != null && now >= due, due };
+}

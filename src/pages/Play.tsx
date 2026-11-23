@@ -118,8 +118,14 @@ function Register({ s, onDone }: { s: PublicState; onDone: (drawnName: string) =
       {!open && <p className="warn">ההרשמה עוד לא נפתחה. אפשר כבר למלא, ולשלוח כשהיא תיפתח.</p>}
       <fieldset className="stagger">
         {members.map((m, i) => (
-          <input key={i} style={{ '--i': i } as React.CSSProperties} value={m} placeholder={`משתתף ${i + 1}`} maxLength={24} autoComplete="off"
-                 onChange={(e) => setMembers(members.map((x, j) => (j === i ? e.target.value : x)))} />
+          <div key={i} className="member-row" style={{ '--i': i } as React.CSSProperties}>
+            <input value={m} placeholder={`משתתף ${i + 1}`} maxLength={24} autoComplete="off" aria-label={`משתתף ${i + 1}`}
+                   onChange={(e) => setMembers(members.map((x, j) => (j === i ? e.target.value : x)))} />
+            {members.length > 1 && (
+              <button type="button" className="remove" aria-label={`מחיקת ${m || `משתתף ${i + 1}`}`}
+                      onClick={() => { vibrate(); setMembers(members.filter((_, j) => j !== i)); }}>✕</button>
+            )}
+          </div>
         ))}
         {members.length < 15 && <button type="button" className="ghost" onClick={() => { vibrate(); setMembers([...members, '']); }}>+ עוד משתתף</button>}
       </fieldset>

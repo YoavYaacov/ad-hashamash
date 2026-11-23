@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { uuid } from './uuid';
 
 export interface SubmitResult {
   received: boolean;
@@ -14,7 +15,7 @@ export interface SubmitResult {
  * Send one answer. The same client_request_id is reused across retries, so a flaky network
  * or a double tap can never create two submissions (the server deduplicates on it).
  */
-export async function submitAnswer(client: SupabaseClient, itemIndex: number, payload: unknown, requestId: string = crypto.randomUUID()): Promise<SubmitResult> {
+export async function submitAnswer(client: SupabaseClient, itemIndex: number, payload: unknown, requestId: string = uuid()): Promise<SubmitResult> {
   let lastErr = '';
   for (let attempt = 0; attempt < 4; attempt++) {
     const { data, error } = await client.functions.invoke('game', {
