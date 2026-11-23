@@ -12,6 +12,7 @@ import { Timer } from '../components/Timer';
 import { SymbolTile } from '../components/Symbols';
 import { APP_NAME, FINALE_NAME } from '../config';
 import { Scene } from '../components/Scene';
+import { Swap } from '../components/Swap';
 import type { SceneSpec } from '../content/scenes';
 
 
@@ -38,9 +39,19 @@ export default function Screen() {
       <Embers />
       {conn !== 'live' && <div className="conn-badge" aria-live="polite">{conn === 'connecting' ? 'מתחבר…' : 'מתחבר מחדש…'}</div>}
       {state?.instance.mode === 'demo' && <div className="demo-badge">משחק ניסיון</div>}
-      <Body s={state} offset={offset} />
+      <Swap k={viewKey(state)} className="screen-swap"><Body s={state} offset={offset} /></Swap>
     </div></div>
   );
+}
+
+/** Which "screen" is showing: changing it triggers the fade-out → fade-in sequence. */
+function viewKey(s: PublicState | null): string {
+  if (!s) return 'lobby';
+  const { status, screen_view } = s.instance;
+  if (status === 'finished' || screen_view === 'final_results') return 'final';
+  if (screen_view === 'standings') return `standings-${s.round?.no}`;
+  if (status === 'in_progress' && s.round) return `round-${s.round.no}`;
+  return 'lobby';
 }
 
 function Body({ s, offset }: { s: PublicState | null; offset: number }) {
@@ -74,22 +85,23 @@ function Lobby({ s }: { s: PublicState | null }) {
       <div className="lobby-title">
         <Menorah lit={8} shamashLit size={520} />
         <h1 className="logo">{APP_NAME}</h1>
-        {!reg && <p className="tagline enter-slow">שמונה נרות · שַׁמָּשׁ אחד · משפחה אחת</p>}
+        <p className="tagline">שמונה נרות · שַׁמָּשׁ אחד · משפחה אחת</p>
       </div>
       <div className="lobby-body">
-        <div className="join">
-          {open ? (
-            <>
-              {qr && <img src={qr} alt={`קוד QR להצטרפות: ${url}`} className="qr" />}
-              <div className="join-url" dir="ltr">{url.replace(/^https?:\/\//, '')}</div>
-              <ol className="steps">
-                <li><span>1</span>סורקים את הקוד, טלפון אחד לכל קבוצה</li>
-                <li><span>2</span>כותבים את שמות המשתתפים</li>
-                <li><span>3</span>מקבלים שם קבוצה מצחיק, ומחכים להתחלה</li>
-              </ol>
-            </>
-          ) : <div className="locked-msg enter">ההרשמה נסגרה. עוד רגע מתחילים!</div>}
-        </div>
+        <Swap k={open ? 'open' : 'locked'} className="join-swap">
+          <div className="join">
+            {open ? (
+              <>
+                {qr && <img src={qr} alt={`קוד QR להצטרפות: ${url}`} className="qr" />}
+                <ol className="steps">
+                  <li><span>1</span>סורקים את הקוד, טלפון אחד לכל קבוצה</li>
+                  <li><span>2</span>כותבים את שמות המשתתפים</li>
+                  <li><span>3</span>מקבלים שם קבוצה מצחיק, ומחכים להתחלה</li>
+                </ol>
+              </>
+            ) : <div className="locked-msg">ההרשמה נסגרה. עוד רגע מתחילים!</div>}
+          </div>
+        </Swap>
         <TeamCloud teams={s?.teams ?? []} />
       </div>
     </div>
@@ -137,7 +149,7 @@ function RoundView({ s, offset }: { s: PublicState; offset: number }) {
   const litBefore = Math.min(8, r.no - 1);
   const roundLabel = r.is_finale ? FINALE_NAME : `נר ${r.no}`;
   return (
-    <div className={`round phase-${r.phase} enter-slow`}>
+    <div className={`round phase-${r.phase}`}>
       <header className="round-header">
         <Menorah lit={r.is_finale ? 8 : litBefore} shamashLit={r.is_finale && ['revealed', 'done'].includes(r.phase)}
                  active={r.is_finale ? null : r.no - 1} size={260} />
@@ -148,8 +160,8 @@ function RoundView({ s, offset }: { s: PublicState; offset: number }) {
         {(r.phase === 'open' || r.phase === 'paused') && <Timer endsAt={r.ends_at} pausedMs={r.paused_remaining_ms} offset={offset} total={r.duration_sec} big />}
       </header>
 
-      <main className="round-main" key={r.phase}>
-        <div className="enter" style={{ width: '100%', display: 'grid', placeItems: 'center' }}>
+      <main className="round-main">
+        <Swap k={r.phase === 'paused' ? 'open' : r.phase}>
         {r.phase === 'intro' && <p className="instructions">{r.instructions}</p>}
         {r.phase === 'betting' && <BetBoard s={s} />}
         {r.phase === 'bets_locked' && <div className="big-msg">ההימורים ננעלו. החידה נחשפת…</div>}
@@ -157,7 +169,7 @@ function RoundView({ s, offset }: { s: PublicState; offset: number }) {
         {r.phase === 'closed' && <div className="big-msg">הזמן נגמר! ההגשות נסגרו.</div>}
         {r.phase === 'graded' && <div className="big-msg">התשובות נבדקו. מחכים למנחה…</div>}
         {(r.phase === 'revealed' || r.phase === 'done') && <Solution s={s} />}
-        </div>
+        </Swap>
       </main>
 
       {(r.phase === 'open' || r.phase === 'paused' || r.phase === 'closed') && (

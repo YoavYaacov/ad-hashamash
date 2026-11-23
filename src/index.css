@@ -399,3 +399,26 @@ button:not(:disabled):active { transform: scale(.96); }
 .pager-page .option { min-height: 48px; }
 .pager .big-cta { min-height: 54px; font-size: 1.15rem; }
 .thumbs { gap: .3rem; }
+
+/* ── Sequential cross-fade (Swap): out completely, then in ── */
+@keyframes swap-out { from { opacity: 1; transform: none; filter: blur(0); } to { opacity: 0; transform: translateY(-1.5cqh); filter: blur(2px); } }
+@keyframes swap-in { from { opacity: 0; transform: translateY(2cqh); } to { opacity: 1; transform: none; } }
+.swap { position: relative; width: 100%; height: 100%; }
+.swap-layer { position: absolute; inset: 0; }
+.swap-layer.leaving { animation: swap-out .6s ease-in both; pointer-events: none; }
+.swap-layer.waiting { opacity: 0; }
+.swap-layer.current { animation: swap-in .9s cubic-bezier(.2,.8,.2,1) both; }
+.round-main .swap-layer { display: grid; place-items: center; }
+.join-swap { min-height: 60cqh; }
+.join-swap .swap-layer { display: flex; justify-content: center; }
+
+/* ── Lobby choreography (no overlaps): 1) tagline fades  2) title glides up  3) QR + instructions appear ── */
+.lobby-title .tagline { transition: opacity .5s ease, transform .5s ease; }
+.lobby.reg .lobby-title .tagline { opacity: 0; transform: translateY(-1cqh); }
+.lobby-title { transition: top 1.5s cubic-bezier(.65,0,.35,1) .45s, transform 1.5s cubic-bezier(.65,0,.35,1) .45s; }
+.lobby-title .menorah { transition: width 1.5s cubic-bezier(.65,0,.35,1) .45s; }
+.lobby-body { transition: opacity 1s ease 1.9s, transform 1.2s cubic-bezier(.2,.8,.2,1) 1.9s; }
+/* Going back to idle: body leaves first, then the title returns. */
+.lobby.idle .lobby-body { transition: opacity .5s ease, transform .5s ease; }
+.lobby.idle .lobby-title { transition: top 1.5s cubic-bezier(.65,0,.35,1) .4s, transform 1.5s cubic-bezier(.65,0,.35,1) .4s; }
+.lobby.idle .lobby-title .tagline { transition: opacity .8s ease 1.6s, transform .8s ease 1.6s; }
