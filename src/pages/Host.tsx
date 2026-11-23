@@ -2,7 +2,7 @@
  * /host — the host's phone console. Email/password sign-in; the account must be listed in public.hosts.
  * Reads full data via RLS (hosts only), acts only through RPCs / the Edge Function.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { useClient } from '../lib/clientContext';
 import { usePublicState, useServerClock, useAutoStandings, useTick } from '../lib/hooks';
@@ -121,6 +121,39 @@ function Console() {
     if (error) setToast({ text: friendlyError(error), bad: true }); else setTransfer({ name, code: data as string });
   };
 
+  // ── Automatic flow (runs on the host phone): time up / everyone finished → close → grade → reveal.
+  // Only decisions that matter stay manual: opening a round, uncertain answers, next round, finals.
+  useTick(1000);
+  useWakeLock();
+  const autoDone = useRef(new Set<string>());
+  const lastGrade = useRef(0);
+  const activeTeams = teams.filter((t) => t.status === 'active');
+  const allDone = !!r && activeTeams.length > 0 && activeTeams.every((t) => teamFinished(r, subs.filter((x) => x.team_id === t.id && x.status !== 'late')));
+  const doneCount = r ? activeTeams.filter((t) => teamFinished(r, subs.filter((x) => x.team_id === t.id && x.status !== 'late'))).length : 0;
+  const [autoNote, setAutoNote] = useState('');
+  useEffect(() => {
+    if (!inst || !r || inst.status !== 'in_progress' || busy) return;
+    const key = `${inst.id}:${r.no}:${r.phase}`;
+    const once = (tag: string, fn: () => void) => { if (!autoDone.current.has(key + tag)) { autoDone.current.add(key + tag); fn(); } };
+    if (r.phase === 'open') {
+      const ends = r.ends_at ? Date.parse(r.ends_at) : null;
+      const timeUp = ends != null && Date.now() + offset >= ends + 800;
+      if (timeUp || allDone) once(':close', () => {
+        setAutoNote(timeUp ? 'הזמן נגמר' : 'כל הקבוצות סיימו');
+        setTimeout(() => act(() => rpc('host_round_action', { p_instance: inst.id, p_round: r.no, p_action: 'close' })), allDone && !timeUp ? 1500 : 0);
+      });
+    }
+    if (r.phase === 'closed' && review.length === 0 && Date.now() - lastGrade.current > 5000) {
+      lastGrade.current = Date.now();
+      act(() => edge({ action: 'grade_round', instance_id: inst.id, round_no: r.no })).then((res) => {
+        if (res?.needs_review?.length) setToast({ text: `${res.needs_review.length} תשובות צריכות הכרעה שלך`, bad: true });
+      });
+    }
+    if (r.phase === 'graded') once(':reveal', () => setTimeout(() => act(() => rpc('host_round_action', { p_instance: inst.id, p_round: r.no, p_action: 'reveal' })), 1200));
+    if (r.phase === 'revealed' && r.no === 8 && !finals) once(':finals', () => act(() => edge({ action: 'compute_finals', instance_id: inst.id })));
+  }); // runs every tick
+  useEffect(() => { setAutoNote(''); }, [r?.no, r?.phase]);
+
   return (
     <div className="host">
       <header className="host-bar">
@@ -148,13 +181,15 @@ function Console() {
       {inst && ['setup', 'registration_open', 'registration_locked'].includes(inst.status) && (
         <section className="card">
           <h2>הרשמה</h2>
-          <p className="muted small">הקבוצות סורקות את ה־QR שעל המסך, כותבות שמות משתתפים ומקבלות שם מוגרל.</p>
           <div className="big-buttons">
             {inst.status !== 'registration_open'
-              ? <button className="primary" disabled={busy} onClick={() => act(() => rpc('host_set_registration', { p_instance: inst.id, p_open: true }), 'ההרשמה נפתחה')}>פתיחת הרשמה</button>
-              : <button className="primary" disabled={busy} onClick={() => act(() => rpc('host_set_registration', { p_instance: inst.id, p_open: false }), 'ההרשמה ננעלה')}>נעילת הרשמה</button>}
-            {inst.status === 'registration_locked' && (
-              <button className="go" disabled={busy || teams.length < 2} onClick={() => ask(`להתחיל את המשחק עם ${teams.filter((t) => t.status === 'active').length} קבוצות?`, async () => { await act(() => rpc('host_start_game', { p_instance: inst.id }), 'המשחק התחיל!'); })}>התחלת המשחק</button>
+              ? <button className="primary" disabled={busy} onClick={() => act(() => rpc('host_set_registration', { p_instance: inst.id, p_open: true }))}>פתיחת הרשמה</button>
+              : <button className="ghost" disabled={busy} onClick={() => act(() => rpc('host_set_registration', { p_instance: inst.id, p_open: false }))}>סגירת הרשמה</button>}
+            {inst.status !== 'setup' && (
+              <button className="go" disabled={busy || activeTeams.length < 2} onClick={() => ask(`להתחיל עם ${activeTeams.length} קבוצות?`, async () => {
+                if (inst.status === 'registration_open') await act(() => rpc('host_set_registration', { p_instance: inst.id, p_open: false }));
+                await act(() => rpc('host_start_game', { p_instance: inst.id }));
+              })}>התחלת המשחק</button>
             )}
           </div>
           <TeamList teams={teams} onTransfer={issueTransfer} onRemove={(id, name) => ask(`להסיר את "${name}"?`, async () => { await act(() => rpc('host_remove_team', { p_team: id })); })} />
@@ -176,35 +211,41 @@ function Console() {
             </div>
           )}
           <div className="big-buttons">
-            {r.phase === 'intro' && r.kind === 'bet_puzzle' && <button className="primary" disabled={busy} onClick={() => act(() => rpc('host_round_action', { p_instance: inst.id, p_round: r.no, p_action: 'open_betting' }))}>פתיחת הימורים</button>}
-            {r.phase === 'betting' && <button className="primary" disabled={busy} onClick={() => act(() => rpc('host_round_action', { p_instance: inst.id, p_round: r.no, p_action: 'lock_bets' }), 'ההימורים ננעלו')}>נעילת הימורים</button>}
+            {r.phase === 'intro' && r.kind === 'bet_puzzle' && <button className="go" disabled={busy} onClick={() => act(() => rpc('host_round_action', { p_instance: inst.id, p_round: r.no, p_action: 'open_betting' }))}>פתיחת הימורים</button>}
+            {r.phase === 'betting' && <button className="go" disabled={busy} onClick={async () => {
+              await act(() => rpc('host_round_action', { p_instance: inst.id, p_round: r.no, p_action: 'lock_bets' }));
+              await act(() => rpc('host_round_action', { p_instance: inst.id, p_round: r.no, p_action: 'open' }));
+            }}>נעילה וחשיפת החידה</button>}
             {((r.phase === 'intro' && r.kind !== 'bet_puzzle') || r.phase === 'bets_locked') && (
-              <button className="go" disabled={busy} onClick={() => act(() => rpc('host_round_action', { p_instance: inst.id, p_round: r.no, p_action: 'open' }), 'הסבב נפתח — הטיימר רץ')}>{r.kind === 'bet_puzzle' ? 'חשיפת החידה והפעלת טיימר' : 'פתיחת הסבב והפעלת טיימר'}</button>
+              <button className="go" disabled={busy} onClick={() => act(() => rpc('host_round_action', { p_instance: inst.id, p_round: r.no, p_action: 'open' }))}>{r.kind === 'bet_puzzle' ? 'חשיפת החידה' : 'פתיחה'}</button>
             )}
-            {r.phase === 'open' && <button disabled={busy} onClick={() => act(() => rpc('host_round_action', { p_instance: inst.id, p_round: r.no, p_action: 'pause' }))}>השהיה</button>}
-            {r.phase === 'paused' && <button className="primary" disabled={busy} onClick={() => act(() => rpc('host_round_action', { p_instance: inst.id, p_round: r.no, p_action: 'resume' }))}>המשך</button>}
-            {(r.phase === 'open' || r.phase === 'paused') && <button className="danger" disabled={busy} onClick={() => ask('לסגור את ההגשות?', async () => { await act(() => rpc('host_round_action', { p_instance: inst.id, p_round: r.no, p_action: 'close' }), 'ההגשות נסגרו'); })}>סגירת הגשות</button>}
-            {r.phase === 'closed' && <button className="primary" disabled={busy} onClick={async () => {
-              const res = await act(() => edge({ action: 'grade_round', instance_id: inst.id, round_no: r.no }));
-              if (res?.needs_review) setToast({ text: `${res.needs_review.length} תשובות ממתינות להכרעה`, bad: true });
-              else if (res?.graded) setToast({ text: 'הבדיקה הושלמה' });
-            }}>בדיקה אוטומטית</button>}
-            {r.phase === 'graded' && <button className="go" disabled={busy} onClick={() => ask('לחשוף פתרון וניקוד של הסבב?', async () => { await act(() => rpc('host_round_action', { p_instance: inst.id, p_round: r.no, p_action: 'reveal' }), 'נחשף'); })}>חשיפת פתרון וניקוד</button>}
-            {['revealed'].includes(r.phase) && (
+            {(r.phase === 'open' || r.phase === 'paused') && (
+              <>
+                <p className="auto-note">{autoNote || `${doneCount}/${activeTeams.length} סיימו · נסגר לבד בסוף הזמן`}</p>
+                <div className="row">
+                  {r.phase === 'open'
+                    ? <button className="grow" disabled={busy} onClick={() => act(() => rpc('host_round_action', { p_instance: inst.id, p_round: r.no, p_action: 'pause' }))}>השהיה</button>
+                    : <button className="grow primary" disabled={busy} onClick={() => act(() => rpc('host_round_action', { p_instance: inst.id, p_round: r.no, p_action: 'resume' }))}>המשך</button>}
+                  <button className="grow ghost" disabled={busy} onClick={() => act(() => rpc('host_round_action', { p_instance: inst.id, p_round: r.no, p_action: 'close' }))}>סגירה עכשיו</button>
+                </div>
+              </>
+            )}
+            {(r.phase === 'closed' || r.phase === 'graded') && review.length === 0 && <p className="auto-note">בודקים וחושפים…</p>}
+            {r.phase === 'revealed' && (
               <>
                 <StandingsControl inst={inst} r={r} offset={offset}
                   onShow={() => act(() => rpc('host_set_screen_view', { p_instance: inst.id, p_view: 'standings' }))}
                   onPin={() => act(() => rpc('host_pin_solution', { p_instance: inst.id, p_pin: true }))} />
-                {r.no === 8 && !finals && <button className="primary" disabled={busy} onClick={() => act(() => edge({ action: 'compute_finals', instance_id: inst.id }), 'חלופות הגמר חושבו')}>חישוב חלופות גמר</button>}
-                {r.no < 9 && <button className="go" disabled={busy || (r.no === 8 && !finals)} onClick={() => act(() => rpc('host_next_round', { p_instance: inst.id }))}>{r.no === 8 ? `מעבר ל${FINALE_NAME}` : 'לסבב הבא'}</button>}
-                {r.no === 9 && <button className="go" disabled={busy} onClick={() => ask('לסיים את המשחק ולהכריז על האלופה?', async () => { await act(() => rpc('host_finish_game', { p_instance: inst.id }), 'המשחק הסתיים'); })}>סיום והכרזה</button>}
+                {r.no < 9 && <button className="go" disabled={busy || (r.no === 8 && !finals?.chosen_option)} onClick={() => act(() => rpc('host_next_round', { p_instance: inst.id }))}>{r.no === 8 ? `ל${FINALE_NAME}` : 'לסבב הבא'}</button>}
+                {r.no === 8 && finals && !finals.chosen_option && <p className="auto-note">בחרו חלופת ניקוד לגמר למטה</p>}
+                {r.no === 9 && <button className="go" disabled={busy} onClick={() => ask('לסיים ולהכריז על האלופה?', async () => { await act(() => rpc('host_finish_game', { p_instance: inst.id })); })}>סיום והכרזה</button>}
               </>
             )}
           </div>
 
           {review.length > 0 && (
             <div className="review">
-              <h3>תשובות לא ודאיות — הכרעת מנחה</h3>
+              <h3>להכרעה שלך</h3>
               {review.map((s) => (
                 <div key={s.id} className="row">
                   <span>{teamName(s.team_id)} · פריט {s.item_index + 1}: <b>{s.payload?.text ?? JSON.stringify(s.payload)}</b></span>
@@ -233,7 +274,7 @@ function Console() {
         </section>
       )}
 
-      {inst?.status === 'finished' && <section className="card"><h2>המשחק הסתיים</h2><p>התוצאות מוצגות על המסך.</p></section>}
+      {inst?.status === 'finished' && <section className="card"><h2>המשחק הסתיים</h2></section>}
 
       {inst && (
         <section className="card danger-zone">
@@ -355,4 +396,29 @@ function ResetButton({ instanceId, onDone, onError }: { instanceId: string; onDo
       <button className="ghost" onClick={() => { setToken(null); setText(''); }}>ביטול</button>
     </div>
   );
+}
+
+/** Has this team finished the round? (used to close the round early when everyone is done) */
+function teamFinished(r: { kind: string; item_count: number }, mine: Sub[]): boolean {
+  if (mine.length === 0) return false;
+  const solved = mine.some((x) => Number(x.ratio) === 1);
+  switch (r.kind) {
+    case 'code_vault': return solved || mine.length >= 3;
+    case 'finale': case 'sliding_puzzle': case 'ordering': case 'bet_puzzle': return true;
+    case 'sequence_memory': return mine.some((x) => x.ratio != null && Number(x.ratio) === 0) || new Set(mine.map((x) => x.item_index)).size >= r.item_count;
+    case 'symbols': return new Set(mine.filter((x) => Number(x.ratio) === 1).map((x) => x.item_index)).size >= r.item_count;
+    default: return new Set(mine.map((x) => x.item_index)).size >= r.item_count;
+  }
+}
+
+/** Keep the host phone awake: the automatic flow runs here. */
+function useWakeLock() {
+  useEffect(() => {
+    let lock: any = null;
+    const get = async () => { try { lock = await (navigator as any).wakeLock?.request('screen'); } catch { /* unsupported */ } };
+    get();
+    const onVis = () => { if (document.visibilityState === 'visible') get(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => { document.removeEventListener('visibilitychange', onVis); try { lock?.release(); } catch { /* ignore */ } };
+  }, []);
 }

@@ -95,7 +95,9 @@ export class MockServer {
     const tot = this.totals(true);
     const cr = gi.current_round ? this.round(gi.current_round) : null;
     const standings = (['standings', 'final_results'].includes(gi.screen_view) || (cr && ['revealed', 'done'].includes(cr.phase) && !cr.pin_solution))
-      ? tot.map((x) => ({ ...x, rank: 1 + tot.filter((y) => y.total > x.total).length })).filter((x) => x.rank <= 5).sort((a, b) => b.total - a.total) : null;
+      ? tot.map((x) => ({ ...x, rank: 1 + tot.filter((y) => y.total > x.total).length,
+          ...(gi.status === 'finished' ? { members: this.teams.find((t) => t.id === x.team_id)?.members ?? [] } : {}) }))
+          .filter((x) => x.rank <= 5).sort((a, b) => b.total - a.total) : null;
     const f = this.finals?.chosen_option ? {
       chosen_option: this.finals.chosen_option,
       prizes: this.finals.options.options[this.finals.chosen_option === 'A' ? 0 : 1],

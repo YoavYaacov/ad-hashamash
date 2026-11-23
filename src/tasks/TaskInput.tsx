@@ -10,6 +10,7 @@ import { friendlyError } from '../lib/errors';
 import { SymbolTile } from '../components/Symbols';
 import { Scene } from '../components/Scene';
 import { SafeArt, type SafeState } from '../components/Safe';
+import { VaultClues } from '../components/VaultClues';
 import { StakeLines, stake, fmt } from '../components/BetStakes';
 import { Sortable } from '../components/Sortable';
 import { Character, MenorahVariant, type CharacterId, type MenorahId } from '../components/BetArt';
@@ -79,7 +80,8 @@ const submittedItems = (subs: CP['subs']) => new Set(subs.filter((x) => x.status
 const solvedItems = (subs: CP['subs']) => new Set(subs.filter((x) => x.correct === true).map((x) => x.item_index));
 
 // ── 4: vault — a real safe: keypad, shake on a wrong code, door swings open on the right one ──
-function CodeInput({ client, subs, canSubmit, onChange }: CP) {
+function CodeInput({ client, s, subs, canSubmit, onChange }: CP) {
+  const c = s.round?.content ?? {};
   const [code, setCode] = useState('');
   const [state, setState] = useState<SafeState>('closed');
   const [status, setStatus] = useState('');
@@ -99,18 +101,23 @@ function CodeInput({ client, subs, canSubmit, onChange }: CP) {
     }
   };
   if (solved || state === 'open') {
-    return <div className="vault-phone"><SafeArt state="open" digits={code} size={230} /><p className="ok vault-status">הכספת נפתחה! ✓</p></div>;
+    return <div className="vault-phone done"><SafeArt state="open" digits={code} size={230} /><p className="ok vault-status">הכספת נפתחה!</p></div>;
   }
-  if (left === 0) return <div className="vault-phone"><SafeArt state="closed" size={200} /><p className="center-msg">הכספת ננעלה. נשארו 0 ניסיונות.</p></div>;
+  if (left === 0) return <div className="vault-phone done"><SafeArt state="closed" size={200} /><p className="center-msg">הכספת ננעלה</p></div>;
   return (
     <div className="vault-phone">
-      <SafeArt state={state} digits={code} size={190} />
-      <p className={`vault-status ${state === 'fail' ? 'error' : 'muted'}`} role="status">{status || `ניסיונות שנותרו: ${left}`}</p>
-      <div className="keypad" dir="ltr">
-        {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((d) => <button key={d} disabled={!canSubmit} onClick={() => press(d)}>{d}</button>)}
-        <button className="del" aria-label="מחיקה" disabled={!canSubmit || !code} onClick={() => { tap(); setCode((c) => c.slice(0, -1)); }}>⌫</button>
-        <button disabled={!canSubmit} onClick={() => press('0')}>0</button>
-        <button className="ok" aria-label="פתיחה" disabled={!canSubmit || code.length !== 4 || busy !== null} onClick={open}>{busy !== null ? '…' : 'פתח'}</button>
+      <VaultClues clues={c.clues ?? []} order={c.order_clue} />
+      <div className="vault-pad">
+        <div className="vault-side">
+          <SafeArt state={state} digits={code} size={112} />
+          <p className={`vault-status ${state === 'fail' ? 'error' : 'muted'}`} role="status">{status || `${left} ניסיונות`}</p>
+        </div>
+        <div className="keypad" dir="ltr">
+          {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((d) => <button key={d} disabled={!canSubmit} onClick={() => press(d)}>{d}</button>)}
+          <button className="del" aria-label="מחיקה" disabled={!canSubmit || !code} onClick={() => { tap(); setCode((x) => x.slice(0, -1)); }}>⌫</button>
+          <button disabled={!canSubmit} onClick={() => press('0')}>0</button>
+          <button className="ok" aria-label="פתיחה" disabled={!canSubmit || code.length !== 4 || busy !== null} onClick={open}>{busy !== null ? '…' : 'פתח'}</button>
+        </div>
       </div>
     </div>
   );
@@ -124,13 +131,12 @@ function Sprint({ client, s, subs, canSubmit, onChange }: CP) {
   const [picked, setPicked] = useState<string | null>(null);
   const { busy, msg, send } = useSubmitter(client, onChange);
   useEffect(() => { setText(''); setPicked(null); }, [current]);
-  if (current >= qs.length) return <p className="center-msg">שלחתם את כל {qs.length} התשובות ✓</p>;
+  if (current >= qs.length) return <p className="center-msg ok">כל התשובות נשלחו</p>;
   const q = qs[current];
   const choose = (o: string) => { if (picked) return; tap(); setPicked(o); setTimeout(() => send(current, { choice: o }), 350); };
   return (
     <div className="task sprint" key={current}>
       <div className="q-progress">{qs.map((_, i) => <i key={i} className={i < current ? 'done' : i === current ? 'now' : ''} />)}</div>
-      <div className="q-counter">שאלה {current + 1} מתוך {qs.length} · אין חזרה אחורה</div>
       <h3 className="q-text">{q.text}</h3>
       {q.options ? (
         <div className={`options ${picked ? 'locked' : ''}`}>
@@ -161,7 +167,7 @@ function ChoiceItems({ client, s, subs, canSubmit, onChange }: CP) {
   const [zoom, setZoom] = useState<SceneSpec | null>(null);
   const items: { title: string; options: { value: string; label: string }[]; pictures?: SceneSpec[] }[] =
     r.kind === 'truth_or_fiction'
-      ? (c.items ?? []).map((it: any) => ({ title: 'איזו עובדה מומצאת?', options: it.facts.map((f: string, i: number) => ({ value: String(i + 1), label: f })) }))
+      ? (c.items ?? []).map((it: any) => ({ title: '', options: it.facts.map((f: string, i: number) => ({ value: String(i + 1), label: f })) }))
       : r.kind === 'three_pictures'
       ? (c.heats ?? []).map((h: any) => ({ title: 'באיזו תמונה הכי הרבה הבדלים?', pictures: h.pictures,
           options: (c.choices ?? ['א', 'ב', 'ג']).map((x: string) => ({ value: x, label: `תמונה ${x}` })) }))
@@ -193,7 +199,7 @@ function ChoiceItems({ client, s, subs, canSubmit, onChange }: CP) {
   if (allSent) {
     return (
       <div className="center-msg">
-        <h3>התשובה הסופית נשלחה ✓</h3>
+        <h3 className="ok">נשלח</h3>
         <p className="muted">{items.map((_, i) => `${unit} ${i + 1}: ${picked[i] ? items[i].options.find((o) => o.value === picked[i])?.label.slice(0, 18) : 'נשלח'}`).join(' · ')}</p>
       </div>
     );
@@ -212,7 +218,7 @@ function ChoiceItems({ client, s, subs, canSubmit, onChange }: CP) {
         ))}
       </div>
       <section className="item pager-page" key={idx}>
-        {!it.pictures && <h3>{it.title}</h3>}
+        {!it.pictures && it.title && <h3>{it.title}</h3>}
         {it.pictures ? (
           // All three pictures at once (wide panoramas) — tap a picture to choose it.
           <div className={`pic-stack ${locked ? 'locked' : ''}`}>
@@ -287,10 +293,10 @@ function Ordering({ client, s, subs, canSubmit, onChange }: CP) {
   const [order, setOrder] = useState(() => items.map((x) => x.id));
   const { busy, msg, send } = useSubmitter(client, onChange);
   const byId = useMemo(() => new Map(items.map((x) => [x.id, x])), [items]);
-  if (submittedItems(subs).has(0)) return <p className="center-msg">הסדר נשלח ✓</p>;
+  if (submittedItems(subs).has(0)) return <p className="center-msg ok">נשלח</p>;
   return (
     <div className="task ordering">
-      <p className="muted small drag-hint">גוררים כל שורה למקום שלה: הכי מוקדם למעלה.</p>
+      <p className="drag-hint">גוררים כל שורה למקום שלה</p>
       <Sortable ids={order} onChange={setOrder} label="סידור לפי הסדר" disabled={!canSubmit}
                 render={(id, i) => <><span className="pos">{i + 1}</span><span className="label">{byId.get(id)?.label}</span></>} />
       <button className="primary" disabled={!canSubmit || busy !== null} onClick={() => send(0, { order })}>שליחת הסדר</button>
@@ -313,7 +319,7 @@ function Sliding({ client, s, subs, canSubmit, onChange }: CP) {
     if (isSolved(board) && moves.length && !sentRef.current && canSubmit) { sentRef.current = true; vibrateLong(); send(0, { moves }); }
   }, [board]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (done) return <div className="center-msg ok"><div className="puzzle-done">{scene && <Scene s={scene} />}</div>הפאזל הושלם! ✓</div>;
+  if (done) return <div className="center-msg ok"><div className="puzzle-done">{scene && <Scene s={scene} />}</div>הפאזל הושלם!</div>;
   const blank = board.indexOf(0);
   const tapTile = (i: number) => {
     if (!canSubmit || !neighbors(blank).includes(i)) return;
@@ -331,16 +337,15 @@ function Sliding({ client, s, subs, canSubmit, onChange }: CP) {
                     style={{ '--c': pos % 3, '--r': Math.floor(pos / 3) } as React.CSSProperties}
                     onClick={() => tapTile(pos)} aria-label={`אריח ${v}`}>
               {scene ? <Scene s={scene} crop={{ col: home % 3, row: Math.floor(home / 3) }} /> : null}
-              <span className="num">{v}</span>
             </button>
           );
         })}
       </div>
-      <div className="row" style={{ justifyContent: 'space-between' }}>
-        <span className="muted">מהלכים: {moves.length}</span>
-        <button className="ghost small" onClick={() => { setBoard(start); setMoves([]); sentRef.current = false; }}>התחלה מחדש</button>
+      <div className="puzzle-foot">
+        {scene && <div className="puzzle-ref" aria-label="התמונה המלאה"><Scene s={scene} /></div>}
+        <span className="muted">{moves.length} מהלכים</span>
+        <button className="ghost small" onClick={() => { setBoard(start); setMoves([]); sentRef.current = false; }}>מההתחלה</button>
       </div>
-      {scene && <details className="peek"><summary>הצצה לתמונה המלאה</summary><Scene s={scene} /></details>}
       {busy !== null && <p className="muted">בודקים…</p>}
       <Feedback m={msg} item={0} />
     </div>
@@ -369,25 +374,22 @@ function BetPicker({ client, s, team, canSubmit, onChange }: CP) {
   if (locked) {
     return (
       <div className="center-msg">
-        <p>ההימור ננעל:</p>
         <h3 style={{ color: 'var(--gold)' }}>{chosen?.label ?? 'זהיר'}</h3>
         {chosen && <StakeLines t={chosen} base={base} myTotal={myTotal} />}
-        <p className="muted">החידה נחשפת בעוד רגע…</p>
       </div>
     );
   }
   const pending = tracks.find((t) => t.id === pick);
   return (
     <div className="task bet">
-      <p>בחרו מסלול לפני שהחידה נחשפת:</p>
-      {myTotal === 0 && <p className="muted small">יש לכם כרגע 0 נקודות, אז אין לכם מה להפסיד. כדאי להעז!</p>}
+      <p className="ask">על כמה אתם מהמרים?</p>
+      {myTotal === 0 && <p className="muted small">יש לכם 0 נקודות, אין מה להפסיד</p>}
       {tracks.map((t) => (
         <button key={t.id} className={`track-btn ${team.bet?.track_id === t.id ? 'chosen' : ''}`} disabled={!canSubmit} onClick={() => { tap(); place(t.id); }}>
           <b>{t.label}</b>
           <StakeLines t={t} base={base} myTotal={myTotal} />
         </button>
       ))}
-      {chosen && <p className="ok">בחרתם: {chosen.label}. אפשר לשנות עד שהמנחה נועל.</p>}
       {confirm && pending && (
         <div className="confirm-box enter" role="alertdialog">
           <p><b>בטוחים?</b> אם החידה לא תיפתר, תפסידו <b className="lose-text" dir="ltr">{fmt(Math.min(stake(base, pending.lossMultiplier), myTotal ?? Infinity))}</b> נקודות{myTotal != null && stake(base, pending.lossMultiplier) >= myTotal ? ', כלומר את כל הניקוד שלכם' : ''}.</p>
@@ -410,11 +412,12 @@ function Matching({ client, s, subs, canSubmit, onChange }: CP) {
   const clues: string[] = c.clues ?? [];
   const [order, setOrder] = useState<string[]>(() => items.map((_, j) => String(j)));
   const { busy, msg, send } = useSubmitter(client, onChange);
-  if (submittedItems(subs).has(0)) return <p className="center-msg">התשובה נשלחה ✓</p>;
+  if (submittedItems(subs).has(0)) return <p className="center-msg ok">נשלח</p>;
   const assignment = order.map(Number);
   return (
     <div className="task matching">
-      <p className="muted small drag-hint">גוררים כל חנוכייה מול מי שבחר בה.</p>
+      {clues.length > 0 && <ol className="match-clues">{clues.map((cl, i) => <li key={i}>{cl}</li>)}</ol>}
+      <p className="drag-hint">גוררים כל חנוכייה מול מי שבחר בה</p>
       <div className="match-board">
         <ol className="match-people" aria-label="המשתתפים">
           {people.map((p, i) => (
@@ -432,12 +435,6 @@ function Matching({ client, s, subs, canSubmit, onChange }: CP) {
                     </span>
                   )} />
       </div>
-      {clues.length > 0 && (
-        <details className="clue-peek">
-          <summary>הרמזים (מופיעים גם על המסך)</summary>
-          <ol>{clues.map((cl, i) => <li key={i}>{cl}</li>)}</ol>
-        </details>
-      )}
       <button className="primary" disabled={!canSubmit || busy !== null} onClick={() => send(0, { assignment })}>שליחה</button>
       <Feedback m={msg} item={0} />
     </div>
@@ -468,13 +465,13 @@ function SequenceMemory({ client, s, subs, canSubmit, onChange }: CP) {
     return () => clearInterval(id);
   }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (failed) return <p className="center-msg">הריצה הסתיימה. עברתם {passed} שלבים — הנקודות נשמרו.</p>;
-  if (stage >= stages.length) return <p className="center-msg ok">השלמתם את כל השלבים! ✓</p>;
+  if (failed) return <p className="center-msg">עברתם {passed} שלבים</p>;
+  if (stage >= stages.length) return <p className="center-msg ok">כל השלבים!</p>;
   const seq = stages[stage];
   return (
     <div className="task memory">
-      <div className="q-counter">שלב {stage + 1} · {seq.length} סמלים</div>
-      {mode === 'ready' && <button className="primary" disabled={!canSubmit} onClick={() => setMode('show')}>מוכנים? הצגת הרצף</button>}
+      <div className="q-counter">שלב {stage + 1}</div>
+      {mode === 'ready' && <button className="primary" disabled={!canSubmit} onClick={() => setMode('show')}>הצגת הרצף</button>}
       {mode === 'show' && <div className="memory-show"><SymbolTile id={seq[Math.min(shown, seq.length - 1)]} size={160} /></div>}
       {mode === 'recall' && (
         <>
@@ -496,7 +493,7 @@ function Finale(p: CP) {
   const type = p.s.round?.content?.answer_type ?? 'code';
   const [v, setV] = useState('');
   const { busy, msg, send } = useSubmitter(p.client, p.onChange);
-  if (solvedItems(p.subs).has(0)) return <p className="center-msg ok">פתרתם! מחכים לשאר הקבוצות…</p>;
+  if (solvedItems(p.subs).has(0)) return <p className="center-msg ok">פתרתם!</p>;
   return (
     <div className="task finale">
       <input dir={type === 'code' ? 'ltr' : 'rtl'} inputMode={type === 'code' ? 'numeric' : 'text'} value={v}

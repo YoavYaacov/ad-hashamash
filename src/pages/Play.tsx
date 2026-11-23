@@ -9,6 +9,7 @@ import { friendlyError } from '../lib/errors';
 import type { PublicState, TeamState } from '../lib/types';
 import { Timer } from '../components/Timer';
 import { APP_NAME, FINALE_NAME } from '../config';
+import { askFor } from '../content/asks';
 import { TaskInput } from '../tasks/TaskInput';
 
 
@@ -167,21 +168,20 @@ function ScoreCard({ score }: { score: NonNullable<TeamState['score']> }) {
 function InGame({ s, team, offset, onChange }: { s: PublicState; team: TeamState; offset: number; onChange: () => void }) {
   const client = useClient('play');
   const t = team.team!;
-  if (t.status !== 'active') return <p className="muted">הקבוצה הוסרה מהמשחק. פנו למנחה.</p>;
+  if (t.status !== 'active') return <p className="muted center-msg">הקבוצה הוסרה מהמשחק.</p>;
   const r = s.round;
   const score = team.score;
 
   if (s.instance.status === 'finished') {
-    return <div className="center-msg"><h2>המשחק הסתיים!</h2>{score && <ScoreCard score={score} />}<p>תודה ששיחקתם!</p></div>;
+    return <div className="center-msg"><h2>תודה ששיחקתם!</h2>{score && <ScoreCard score={score} />}</div>;
   }
   if (s.instance.status !== 'in_progress' || !r) {
     return (
       <div className="center-msg">
-        <p className="muted">השם שלכם:</p>
         <p className="team-name-big" style={{ color: t.color }}>{t.name}</p>
         <p className="muted">{t.members.join(' · ')}</p>
-        <div className="waiting-dots" aria-label="ממתינים"><i /><i /><i /></div>
-        <p>ממתינים לתחילת המשחק…</p>
+        <div className="waiting-dots" aria-hidden="true"><i /><i /><i /></div>
+        <p>עוד רגע מתחילים</p>
       </div>
     );
   }
@@ -190,18 +190,21 @@ function InGame({ s, team, offset, onChange }: { s: PublicState; team: TeamState
   const isFinalist = !r.is_finale || (r.finalists ?? []).includes(t.id);
   const showScore = score && ['intro', 'revealed', 'done'].includes(r.phase) && (r.phase !== 'intro' || r.no > 1);
 
+  const ask = askFor(r.kind, r.content);
+  const live = ['betting', 'bets_locked', 'open'].includes(r.phase);
   return (
     <div className="in-round" key={`${r.no}-${r.phase}`}>
       <div className="round-top">
         <div className="round-chip">{roundLabel} · {r.title}</div>
         {(r.phase === 'open' || r.phase === 'paused') && <Timer endsAt={r.ends_at} pausedMs={r.paused_remaining_ms} offset={offset} total={r.duration_sec} />}
       </div>
-      {!isFinalist ? <p className="center-msg">הגמר יוצא לדרך! צפו במסך, הקבוצות המובילות מתמודדות.</p>
-        : r.phase === 'intro' ? <div className="instructions-card"><p>{r.instructions}</p><p className="muted">הסבב ייפתח בעוד רגע…</p></div>
-        : r.phase === 'paused' ? <p className="center-msg">הסבב מושהה. התשובות שלכם שמורות.</p>
-        : ['betting', 'bets_locked', 'open'].includes(r.phase) ? <TaskInput client={client} s={s} team={team} onChange={onChange} />
-        : r.phase === 'closed' || r.phase === 'graded' ? <div className="center-msg"><div className="waiting-dots"><i /><i /><i /></div><p>הזמן נגמר. בודקים תשובות…</p></div>
-        : <div className="center-msg"><h3>הפתרון על המסך</h3></div>}
+      {r.phase === 'open' && isFinalist && ask && r.kind !== 'sprint' && <p className="ask">{ask}</p>}
+      {!isFinalist ? <p className="center-msg">הגמר! צפו במסך</p>
+        : r.phase === 'intro' ? <div className="instructions-card enter"><p>{r.instructions}</p><div className="waiting-dots" aria-hidden="true"><i /><i /><i /></div></div>
+        : r.phase === 'paused' ? <p className="center-msg">הפסקה קצרה. התשובות שמורות.</p>
+        : live ? <TaskInput client={client} s={s} team={team} onChange={onChange} />
+        : r.phase === 'closed' || r.phase === 'graded' ? <div className="center-msg"><h3>הזמן נגמר</h3><div className="waiting-dots" aria-hidden="true"><i /><i /><i /></div></div>
+        : <div className="center-msg look-up"><h3>הפתרון על המסך</h3></div>}
       {showScore && <ScoreCard score={score!} />}
     </div>
   );

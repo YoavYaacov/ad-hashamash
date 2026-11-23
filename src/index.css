@@ -579,3 +579,64 @@ button:not(:disabled):active { transform: scale(.96); }
 
 /* Bet track cards: natural height (the first card used to stretch) */
 .task.bet .track-btn { flex: none; align-content: start; height: auto; }
+
+/* ───────── Round question: one short line, same on screen and phone ───────── */
+.ask { margin: 0; text-align: center; font-size: 1.15rem; color: var(--gold-soft); animation: enter-up .5s ease both; }
+.round-ask { margin: .3em 0 0; font-size: 1.35em; color: var(--cream); opacity: .92; animation: enter-up .7s ease .2s both; }
+.big-msg .waiting-dots i { width: .35em; height: .35em; }
+.on-phones { display: grid; justify-items: center; gap: 1.2cqh; color: var(--gold-soft); font-size: 2em; animation: breathe 2.6s ease-in-out infinite; }
+.look-up h3 { color: var(--gold-soft); }
+
+/* ───────── Vault: four dreidel-letter riddles + order rule ───────── */
+.vault-clues ol { list-style: none; margin: 0; padding: 0; display: grid; gap: .45rem; }
+.vault-clues li { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .55rem; background: var(--night-2); border-radius: 12px; padding: .4rem .55rem; font-size: .92rem; line-height: 1.3; }
+.dreidel-letter { width: 2.1rem; height: 2.1rem; display: grid; place-items: center; border-radius: 9px 9px 50% 50%; background: linear-gradient(180deg, var(--gold-soft), var(--gold)); color: var(--night); font-size: 1.25rem; box-shadow: 0 3px 0 #9c6a1e; }
+.digit-slot { width: 1.6rem; height: 2rem; display: grid; place-items: center; border-radius: 6px; background: #0b1026; color: #6fd08c; box-shadow: inset 0 0 0 2px var(--night-3); font-size: 1rem; }
+.order-rule { margin: .45rem 0 0; text-align: center; font-size: .95rem; color: var(--gold-soft); }
+.order-rule b { color: var(--cream); }
+.vault-clues.big { font-size: 1em; }
+.vault-clues.big ol { gap: 1.2cqh; }
+.vault-clues.big li { padding: .45em .9em; font-size: 1.15em; gap: .8em; border-radius: var(--radius); }
+.vault-clues.big li { animation: enter-up .6s ease both; } .vault-clues.big li:nth-child(2) { animation-delay: .12s; } .vault-clues.big li:nth-child(3) { animation-delay: .24s; } .vault-clues.big li:nth-child(4) { animation-delay: .36s; }
+.vault-clues.big .dreidel-letter { width: 1.9em; height: 1.9em; font-size: 1.3em; }
+.vault-clues.big .digit-slot { width: 2em; height: 2.4em; font-size: 1.1em; }
+.vault-clues.big .order-rule { font-size: 1.25em; margin-top: 1.6cqh; }
+.vault-pad { display: grid; grid-template-columns: 112px 1fr; gap: .6rem; align-items: center; }
+.vault-side { display: grid; justify-items: center; gap: .2rem; }
+.vault-side .vault-status { font-size: .85rem; min-height: 1.2em; margin: 0; }
+.vault-pad .keypad button { min-height: 46px; font-size: 1.25rem; }
+.vault-phone.done { justify-items: center; }
+
+/* ───────── Bet matching: clues always visible, compact ───────── */
+.match-clues { margin: 0; padding: .45rem .8rem .45rem .5rem; padding-inline-start: 1.4rem; background: var(--night-2); border-radius: 12px; display: grid; gap: .2rem; font-size: .88rem; line-height: 1.3; }
+.match-board { --row: 54px; }
+.drag-hint { color: var(--muted); font-size: .85rem; }
+
+/* ───────── Sliding puzzle: reference picture instead of numbers ───────── */
+.puzzle-foot { display: grid; grid-template-columns: 96px 1fr auto; align-items: center; gap: .7rem; }
+.puzzle-ref { border-radius: 8px; overflow: hidden; box-shadow: 0 0 0 2px var(--night-3); }
+.puzzle-ref .scene { aspect-ratio: 4/3; height: auto; display: block; }
+.puzzle-solution { width: 46cqw; border-radius: 1.4cqw; overflow: hidden; box-shadow: 0 0 0 .5cqw var(--gold), 0 0 6cqw rgba(233,185,73,.35); animation: pop-name 1.1s cubic-bezier(.2,1.3,.4,1) both; }
+.puzzle-solution .scene { aspect-ratio: 4/3; height: auto; display: block; }
+
+/* ───────── Pictures solution: the winning picture of each heat lights up ───────── */
+.pic-solution { display: grid; gap: 1.6cqh; }
+.heat-sol { display: grid; grid-template-columns: repeat(3, 21cqw); gap: 1.6cqw; animation: enter-up .6s ease both; animation-delay: calc(var(--i) * .35s); }
+.heat-sol figure { margin: 0; position: relative; opacity: .4; transform: scale(.94); transition: opacity .6s, transform .6s; }
+.heat-sol figure.win { opacity: 1; transform: scale(1); animation: win-glow 1s ease both; animation-delay: calc(var(--i) * .35s + .6s); }
+.heat-sol .scene { aspect-ratio: 8/3; height: auto; display: block; border-radius: .8cqw; }
+.heat-sol figcaption { position: absolute; top: .4cqh; inset-inline-start: .6cqw; font-size: 1.1em; color: var(--night); background: var(--gold-soft); border-radius: 50%; width: 1.6em; height: 1.6em; display: grid; place-items: center; }
+@keyframes win-glow { from { box-shadow: 0 0 0 0 rgba(233,185,73,0); } to { box-shadow: 0 0 0 .45cqw var(--gold), 0 0 4cqw rgba(233,185,73,.5); border-radius: .8cqw; } }
+
+/* ───────── Final results: champion + who played ───────── */
+.champ-members { display: flex; flex-wrap: wrap; justify-content: center; gap: .6em 1em; max-width: 70cqw; font-size: 1.5em; color: var(--cream); }
+.champ-members span { animation: enter-up .6s ease both; animation-delay: calc(1.4s + var(--i) * .12s); }
+.champ-members span:not(:last-child)::after { content: '·'; margin-inline-start: 1em; color: var(--gold); }
+.podium { display: grid; gap: 1cqh; width: min(70cqw, 60em); margin-top: 2cqh; }
+.podium-row { display: grid; grid-template-columns: 2em 1fr auto; align-items: center; gap: 1em; background: rgba(20, 26, 58, .94); border-radius: 12px; padding: .4em 1em; font-size: 1.1em; }
+.podium-row .rk { color: var(--gold); } .podium-row .pt { color: var(--gold-soft); }
+.podium-row .nm small { display: block; color: var(--muted); font-size: .72em; }
+.final-results { display: flex; flex-direction: column; align-items: center; gap: 1.2cqh; }
+
+/* Host: quiet status line for the automatic flow */
+.auto-note { margin: 0; text-align: center; color: var(--muted); font-size: .95rem; }

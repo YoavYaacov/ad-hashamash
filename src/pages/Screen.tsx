@@ -14,6 +14,8 @@ import { APP_NAME, FINALE_NAME } from '../config';
 import { Scene } from '../components/Scene';
 import { Swap } from '../components/Swap';
 import { Character, MenorahVariant } from '../components/BetArt';
+import { askFor } from '../content/asks';
+import { VaultClues } from '../components/VaultClues';
 import { SafeArt } from '../components/Safe';
 import { StakeLines } from '../components/BetStakes';
 import type { SceneSpec } from '../content/scenes';
@@ -160,18 +162,18 @@ function RoundView({ s, offset }: { s: PublicState; offset: number }) {
         <div className="round-titles">
           <div className="round-label">{roundLabel}</div>
           <h2 className="round-title">{r.title}</h2>
+          {['open', 'paused'].includes(r.phase) && askFor(r.kind, r.content) && <p className="round-ask">{askFor(r.kind, r.content)}</p>}
         </div>
         {(r.phase === 'open' || r.phase === 'paused') && <Timer endsAt={r.ends_at} pausedMs={r.paused_remaining_ms} offset={offset} total={r.duration_sec} big />}
       </header>
 
       <main className="round-main">
-        <Swap k={r.phase === 'paused' ? 'open' : r.phase}>
+        <Swap k={r.phase === 'paused' ? 'open' : r.phase === 'graded' ? 'closed' : r.phase}>
         {r.phase === 'intro' && <p className="instructions">{r.instructions}</p>}
         {r.phase === 'betting' && <BetBoard s={s} />}
-        {r.phase === 'bets_locked' && <div className="big-msg">ההימורים ננעלו. החידה נחשפת…</div>}
+        {r.phase === 'bets_locked' && <div className="big-msg">ההימורים ננעלו</div>}
         {(r.phase === 'open' || r.phase === 'paused') && <ScreenContent s={s} />}
-        {r.phase === 'closed' && <div className="big-msg">הזמן נגמר! ההגשות נסגרו.</div>}
-        {r.phase === 'graded' && <div className="big-msg">התשובות נבדקו. מחכים למנחה…</div>}
+        {(r.phase === 'closed' || r.phase === 'graded') && <div className="big-msg">הזמן נגמר<div className="waiting-dots" aria-hidden="true"><i /><i /><i /></div></div>}
         {(r.phase === 'revealed' || r.phase === 'done') && <Solution s={s} />}
         </Swap>
       </main>
@@ -194,11 +196,8 @@ function ScreenContent({ s }: { s: PublicState }) {
     case 'code_vault':
       return (
         <div className="vault-screen">
-        <div className="clue-grid">
-          {(c.clues ?? []).map((cl: any) => <div key={cl.label} className="clue"><b>{cl.label}</b><p>{cl.text}</p></div>)}
-          {c.order_clue && <div className="clue order"><b>סדר</b><p>{c.order_clue}</p></div>}
-        </div>
-        <SafeArt state="closed" />
+          <VaultClues clues={c.clues ?? []} order={c.order_clue} big />
+          <SafeArt state="closed" />
         </div>
       );
     case 'symbols':
@@ -248,7 +247,7 @@ function ScreenContent({ s }: { s: PublicState }) {
       return <div className="finale-puzzle">{c.puzzle}</div>;
     default:
       // sprint, sliding puzzle, sequence memory, video questions: played on the phones.
-      return <div className="big-msg">משחקים בטלפונים!</div>;
+      return <div className="on-phones"><PhoneGlyph /><span>בטלפון</span></div>;
   }
 }
 
@@ -257,7 +256,7 @@ function BetBoard({ s }: { s: PublicState }) {
   const base = s.round?.bet_base ?? 0;
   return (
     <div className="bet-board">
-      <p className="instructions">בחרו מסלול בטלפון. החידה תיחשף רק אחרי שכל ההימורים יינעלו.</p>
+      <p className="instructions">החידה עוד מוסתרת. על כמה אתם מהמרים?</p>
       <div className="tracks stagger">
         {tracks.map((t, i) => (
           <div key={t.id} className="track" style={{ '--i': i } as React.CSSProperties}>
@@ -266,10 +265,14 @@ function BetBoard({ s }: { s: PublicState }) {
           </div>
         ))}
       </div>
-      <p className="hint">אם לא בוחרים מסלול, נשארים ב"{tracks.find((t) => t.lossMultiplier === 0)?.label ?? 'זהיר'}". הניקוד אף פעם לא יורד מתחת ל־0.</p>
+      <p className="hint">בלי בחירה = "{tracks.find((t) => t.lossMultiplier === 0)?.label ?? 'זהיר'}"</p>
     </div>
   );
 }
+
+const PhoneGlyph = () => (
+  <svg viewBox="0 0 40 64" width="64" height="100" aria-hidden="true"><rect x="2" y="2" width="36" height="60" rx="7" fill="none" stroke="currentColor" strokeWidth="3" /><circle cx="20" cy="54" r="2.6" fill="currentColor" /></svg>
+);
 
 /** Shows the actual answers after reveal (only ever rendered from the revealed snapshot). */
 function Solution({ s }: { s: PublicState }) {
@@ -289,7 +292,18 @@ function Solution({ s }: { s: PublicState }) {
       body = <ol className="sol-list">{sol.items.map((it: any, i: number) => (
         <li key={i}><span className="q">ההמצאה:</span><b>{c.items?.[i]?.facts?.[Number(it.choice) - 1] ?? it.choice}</b></li>))}</ol>; break;
     case 'three_pictures':
-      body = <ol className="sol-list">{sol.items.map((it: any, i: number) => <li key={i}><span className="q">מקצה {i + 1}:</span><b>תמונה {it.choice}</b></li>)}</ol>; break;
+      body = (
+        <div className="pic-solution stagger">
+          {sol.items.map((it: any, i: number) => (
+            <div key={i} className="heat-sol" style={{ '--i': i } as React.CSSProperties}>
+              {(c.heats?.[i]?.pictures ?? []).map((p: SceneSpec, j: number) => {
+                const letter = ['א', 'ב', 'ג'][j];
+                return <figure key={j} className={letter === it.choice ? 'win' : ''}><Scene s={p} /><figcaption>{letter}</figcaption></figure>;
+              })}
+            </div>
+          ))}
+        </div>
+      ); break;
     case 'symbols':
       body = <ol className="sol-list">{sol.items.map((it: any, i: number) => <li key={i}><b>{it.text.canonical}</b></li>)}</ol>; break;
     case 'ordering': {
@@ -313,9 +327,9 @@ function Solution({ s }: { s: PublicState }) {
     case 'sequence_memory':
       body = <div className="sol-seq">{sol.stages[sol.stages.length - 1].map((id: string, i: number) => <SymbolTile key={i} id={id} size={64} />)}</div>; break;
     case 'sliding_puzzle':
-      body = <div className="big-msg">הפאזל המלא</div>; break;
+      body = c.scene ? <div className="puzzle-solution"><Scene s={c.scene} /></div> : null; break;
   }
-  return <div className="solution"><h3>הפתרון</h3>{body}</div>;
+  return <div className="solution">{body}</div>;
 }
 
 function useRanked(s: PublicState) {
@@ -342,7 +356,7 @@ function Standings({ s }: { s: PublicState }) {
           </div>
         ))}
       </div>
-      <p className="hint enter-slow" style={{ animationDelay: '1.5s' }}>המקום והניקוד של כל קבוצה מופיעים בטלפון שלה</p>
+      <p className="hint enter-slow" style={{ animationDelay: '1.5s' }}>המקום שלכם בטלפון</p>
     </div>
   );
 }
@@ -388,9 +402,18 @@ function FinalResults({ s }: { s: PublicState }) {
       <Menorah lit={8} shamashLit size={300} />
       <div className="champion-label enter">{champ.length > 1 ? 'האלופות' : 'האלופה'}</div>
       <h1 className="champion" style={{ animation: 'pop-name 1.4s cubic-bezier(.2,1.4,.4,1) .4s both' }}>{champ.map((c) => c.team?.name).join(' · ')}</h1>
-      <div className="final-list stagger">
-        {ranked.slice(champ.length).map((r, i) => (
-          <div key={r.team_id} className="final-row" style={{ '--i': i + 6 } as React.CSSProperties}><span>{r.rank}</span><span>{r.team?.name}</span><span>{r.total.toLocaleString('he-IL')}</span></div>
+      {champ.some((c) => c.members?.length) && (
+        <div className="champ-members">
+          {champ.flatMap((c) => c.members ?? []).map((m: string, i: number) => <span key={i} style={{ '--i': i } as React.CSSProperties}>{m}</span>)}
+        </div>
+      )}
+      <div className="podium stagger">
+        {ranked.filter((r) => r.rank > 1).slice(0, 4).map((r, i) => (
+          <div key={r.team_id} className="podium-row" style={{ '--i': i + 6 } as React.CSSProperties}>
+            <span className="rk">{r.rank}</span>
+            <span className="nm">{r.team?.name}{r.members?.length ? <small>{r.members.join(' · ')}</small> : null}</span>
+            <span className="pt">{r.total.toLocaleString('he-IL')}</span>
+          </div>
         ))}
       </div>
       <Confetti />
