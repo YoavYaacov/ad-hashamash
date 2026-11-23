@@ -7,11 +7,15 @@ import type { PublicState, TeamState } from '../lib/types';
 import { submitAnswer, type SubmitResult } from '../lib/submit';
 import { friendlyError } from '../lib/errors';
 import { SymbolTile } from '../components/Symbols';
+import { Scene } from '../components/Scene';
+import type { SceneSpec } from '../content/scenes';
 import { isSolved, moveTile, neighbors, type Board } from '../../supabase/functions/_shared/engine/slidingPuzzle.ts';
 
 interface Props { client: SupabaseClient; s: PublicState; team: TeamState; onChange: () => void }
 
 const HEB = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח'];
+const tap = () => { try { navigator.vibrate?.(12); } catch { /* unsupported */ } };
+const vibrateLong = () => { try { navigator.vibrate?.([30, 40, 60]); } catch { /* unsupported */ } };
 
 /** Shared submit state for one item, with a stable request id per pending answer. */
 function useSubmitter(client: SupabaseClient, onChange: () => void) {
@@ -93,22 +97,25 @@ function Sprint({ client, s, subs, canSubmit, onChange }: CP) {
   const qs: any[] = s.round?.content?.questions ?? [];
   const current = submittedItems(subs).size;
   const [text, setText] = useState('');
+  const [picked, setPicked] = useState<string | null>(null);
   const { busy, msg, send } = useSubmitter(client, onChange);
-  useEffect(() => setText(''), [current]);
+  useEffect(() => { setText(''); setPicked(null); }, [current]);
   if (current >= qs.length) return <p className="center-msg">שלחתם את כל {qs.length} התשובות ✓</p>;
   const q = qs[current];
+  const choose = (o: string) => { if (picked) return; tap(); setPicked(o); setTimeout(() => send(current, { choice: o }), 350); };
   return (
-    <div className="task sprint">
+    <div className="task sprint" key={current}>
+      <div className="q-progress">{qs.map((_, i) => <i key={i} className={i < current ? 'done' : i === current ? 'now' : ''} />)}</div>
       <div className="q-counter">שאלה {current + 1} מתוך {qs.length} · אין חזרה אחורה</div>
       <h3 className="q-text">{q.text}</h3>
       {q.options ? (
-        <div className="options">
-          {q.options.map((o: string) => <button key={o} className="option" disabled={!canSubmit || busy !== null} onClick={() => send(current, { choice: o })}>{o}</button>)}
+        <div className={`options ${picked ? 'locked' : ''}`}>
+          {q.options.map((o: string) => <button key={o} className={`option ${picked === o ? 'chosen' : ''}`} disabled={!canSubmit || busy !== null || (!!picked && picked !== o)} onClick={() => choose(o)}>{o}</button>)}
         </div>
       ) : (
         <>
           <input value={text} onChange={(e) => setText(e.target.value)} placeholder="התשובה שלכם" disabled={!canSubmit} />
-          <button className="primary" disabled={!canSubmit || !text.trim() || busy !== null} onClick={() => send(current, { text })}>שליחה ונעילה</button>
+          <button className="primary" disabled={!canSubmit || !text.trim() || busy !== null} onClick={() => { tap(); send(current, { text }); }}>שליחה ונעילה</button>
         </>
       )}
       <Feedback m={msg} item={current - 1} />
@@ -116,31 +123,95 @@ function Sprint({ client, s, subs, canSubmit, onChange }: CP) {
   );
 }
 
-// ── 5 / 8 / 13: one choice per item (questions / facts / heats) ──
+// ── 5 / 8 / 13: several heats/sets, ONE at a time (no scrolling) ──
+// A choice is highlighted and the pager moves on; the team can go back and change anything,
+// and only the bottom button sends everything as the final answer.
 function ChoiceItems({ client, s, subs, canSubmit, onChange }: CP) {
   const r = s.round!;
   const c = r.content ?? {};
   const done = submittedItems(subs);
-  const { busy, msg, send } = useSubmitter(client, onChange);
-  const items: { title: string; options: { value: string; label: string }[] }[] =
+  const [idx, setIdx] = useState(0);
+  const [picked, setPicked] = useState<Record<number, string>>({});
+  const [sending, setSending] = useState(false);
+  const [err, setErr] = useState('');
+  const [zoom, setZoom] = useState<SceneSpec | null>(null);
+  const items: { title: string; options: { value: string; label: string }[]; pictures?: SceneSpec[] }[] =
     r.kind === 'truth_or_fiction'
       ? (c.items ?? []).map((it: any) => ({ title: 'איזו עובדה מומצאת?', options: it.facts.map((f: string, i: number) => ({ value: String(i + 1), label: f })) }))
       : r.kind === 'three_pictures'
-      ? (c.heats ?? []).map((_: any, i: number) => ({ title: `מקצה ${i + 1}: באיזו תמונה הכי הרבה חריגים?`, options: (c.choices ?? ['א', 'ב', 'ג']).map((x: string) => ({ value: x, label: `תמונה ${x}` })) }))
+      ? (c.heats ?? []).map((h: any) => ({ title: 'באיזו תמונה הכי הרבה חריגים?', pictures: h.pictures,
+          options: (c.choices ?? ['א', 'ב', 'ג']).map((x: string) => ({ value: x, label: `תמונה ${x}` })) }))
       : (c.questions ?? []).map((q: any) => ({ title: q.text, options: q.options.map((o: string) => ({ value: o, label: o })) }));
+  const unit = r.kind === 'truth_or_fiction' ? 'סט' : r.kind === 'three_pictures' ? 'מקצה' : 'שאלה';
+  const allSent = items.length > 0 && items.every((_, i) => done.has(i));
+  const answered = items.filter((_, i) => picked[i] !== undefined || done.has(i)).length;
+
+  const choose = (v: string) => {
+    if (done.has(idx) || sending) return;
+    tap();
+    const next = { ...picked, [idx]: v };
+    setPicked(next);
+    const nextOpen = items.findIndex((_, i) => i > idx && next[i] === undefined && !done.has(i));
+    if (nextOpen >= 0) setTimeout(() => setIdx(nextOpen), 450);
+  };
+
+  const sendAll = async () => {
+    setSending(true); setErr(''); tap();
+    for (const [k, v] of Object.entries(picked)) {
+      const i = Number(k);
+      if (done.has(i)) continue;
+      const res = await submitAnswer(client, i, { choice: v });
+      if (!res.received && res.error && !/no_attempts_left|already_solved/.test(res.error)) setErr(friendlyError(res.error));
+    }
+    setSending(false); vibrateLong(); onChange();
+  };
+
+  if (allSent) {
+    return (
+      <div className="center-msg">
+        <h3>התשובה הסופית נשלחה ✓</h3>
+        <p className="muted">{items.map((_, i) => `${unit} ${i + 1}: ${picked[i] ? items[i].options.find((o) => o.value === picked[i])?.label.slice(0, 18) : 'נשלח'}`).join(' · ')}</p>
+      </div>
+    );
+  }
+  const it = items[idx];
+  if (!it) return null;
+  const locked = done.has(idx);
   return (
-    <div className="task choices">
-      {items.map((it, i) => (
-        <section key={i} className={`item ${done.has(i) ? 'done' : ''}`}>
-          <h3>{it.title}</h3>
-          {done.has(i) ? <p className="ok">נשלח ✓</p> : (
-            <div className="options">
-              {it.options.map((o) => <button key={o.value} className="option" disabled={!canSubmit || busy !== null} onClick={() => send(i, { choice: o.value })}>{o.label}</button>)}
-            </div>
-          )}
-          <Feedback m={msg} item={i} />
-        </section>
-      ))}
+    <div className="task pager">
+      <div className="pager-nav" role="tablist">
+        {items.map((_, i) => (
+          <button key={i} role="tab" aria-selected={i === idx} onClick={() => { tap(); setIdx(i); }}
+                  className={`${i === idx ? 'now' : ''} ${picked[i] !== undefined || done.has(i) ? 'answered' : ''}`}>
+            {unit} {i + 1}
+          </button>
+        ))}
+      </div>
+      <section className="item pager-page" key={idx}>
+        <h3>{it.title}</h3>
+        {it.pictures && (
+          <div className="thumbs">
+            {it.pictures.map((p, j) => <figure key={j} onClick={() => setZoom(p)}><Scene s={p} label={`תמונה ${HEB[j]}`} /><figcaption>{HEB[j]}</figcaption></figure>)}
+          </div>
+        )}
+        <div className={`options ${locked ? 'locked' : ''}`}>
+          {it.options.map((o) => (
+            <button key={o.value} className={`option ${picked[idx] === o.value ? 'chosen' : ''}`}
+                    disabled={!canSubmit || locked || sending} onClick={() => choose(o.value)}>{o.label}</button>
+          ))}
+        </div>
+      </section>
+      <div className="pager-footer">
+        <div className="row pager-arrows">
+          <button className="ghost small" disabled={idx === 0} onClick={() => setIdx(idx - 1)}>→ הקודם</button>
+          <span className="muted">{answered} מתוך {items.length} נבחרו</span>
+          <button className="ghost small" disabled={idx === items.length - 1} onClick={() => setIdx(idx + 1)}>הבא ←</button>
+        </div>
+        <button className="primary big-cta" disabled={!canSubmit || sending || Object.keys(picked).length === 0}
+                onClick={sendAll}>{sending ? 'שולחים…' : answered < items.length ? `שליחת תשובה סופית (${answered}/${items.length})` : 'שליחת תשובה סופית'}</button>
+        {err && <p className="error">{err}</p>}
+      </div>
+      {zoom && <div className="modal" onClick={() => setZoom(null)}><div className="zoom enter"><Scene s={zoom} /><p className="muted">הקישו לסגירה</p></div></div>}
     </div>
   );
 }
@@ -201,9 +272,10 @@ function Ordering({ client, s, subs, canSubmit, onChange }: CP) {
   );
 }
 
-// ── 26: 3×3 sliding puzzle — moves are replayed and verified on the server ──
+// ── 26: 3×3 sliding puzzle — tiles carry the picture and glide; moves are verified on the server ──
 function Sliding({ client, s, subs, canSubmit, onChange }: CP) {
   const start: Board = s.round?.content?.start ?? [];
+  const scene: SceneSpec | undefined = s.round?.content?.scene;
   const [board, setBoard] = useState<Board>(start);
   const [moves, setMoves] = useState<number[]>([]);
   const { busy, msg, send } = useSubmitter(client, onChange);
@@ -211,28 +283,38 @@ function Sliding({ client, s, subs, canSubmit, onChange }: CP) {
   const done = solvedItems(subs).has(0);
 
   useEffect(() => {
-    if (isSolved(board) && moves.length && !sentRef.current && canSubmit) { sentRef.current = true; send(0, { moves }); }
+    if (isSolved(board) && moves.length && !sentRef.current && canSubmit) { sentRef.current = true; vibrateLong(); send(0, { moves }); }
   }, [board]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (done) return <p className="center-msg ok">הפאזל הושלם! ✓</p>;
+  if (done) return <div className="center-msg ok"><div className="puzzle-done">{scene && <Scene s={scene} />}</div>הפאזל הושלם! ✓</div>;
   const blank = board.indexOf(0);
-  const tap = (i: number) => {
+  const tapTile = (i: number) => {
     if (!canSubmit || !neighbors(blank).includes(i)) return;
     const n = moveTile(board, board[i]);
-    if (n) { setBoard(n); setMoves([...moves, board[i]]); }
+    if (n) { tap(); setBoard(n); setMoves([...moves, board[i]]); }
   };
   return (
     <div className="task sliding">
-      <div className="puzzle" role="grid" aria-label="פאזל החלקה">
-        {board.map((v, i) => (
-          <button key={i} className={`tile ${v === 0 ? 'blank' : ''} ${neighbors(blank).includes(i) ? 'movable' : ''}`}
-                  style={v ? { '--tx': ((v - 1) % 3), '--ty': Math.floor((v - 1) / 3) } as React.CSSProperties : undefined}
-                  onClick={() => tap(i)} disabled={v === 0} aria-label={v ? `אריח ${v}` : 'משבצת ריקה'}>{v || ''}</button>
-        ))}
+      <div className="puzzle glide" role="grid" aria-label="פאזל החלקה">
+        {[1, 2, 3, 4, 5, 6, 7, 8].map((v) => {
+          const pos = board.indexOf(v);
+          const home = v - 1;
+          return (
+            <button key={v} className={`tile ${neighbors(blank).includes(pos) ? 'movable' : ''}`}
+                    style={{ '--c': pos % 3, '--r': Math.floor(pos / 3) } as React.CSSProperties}
+                    onClick={() => tapTile(pos)} aria-label={`אריח ${v}`}>
+              {scene ? <Scene s={scene} crop={{ col: home % 3, row: Math.floor(home / 3) }} /> : null}
+              <span className="num">{v}</span>
+            </button>
+          );
+        })}
       </div>
-      <p className="muted">מהלכים: {moves.length}</p>
-      <button className="ghost" onClick={() => { setBoard(start); setMoves([]); sentRef.current = false; }}>התחלה מחדש</button>
-      {busy !== null && <p className="muted">שולחים…</p>}
+      <div className="row" style={{ justifyContent: 'space-between' }}>
+        <span className="muted">מהלכים: {moves.length}</span>
+        <button className="ghost small" onClick={() => { setBoard(start); setMoves([]); sentRef.current = false; }}>התחלה מחדש</button>
+      </div>
+      {scene && <details className="peek"><summary>הצצה לתמונה המלאה</summary><Scene s={scene} /></details>}
+      {busy !== null && <p className="muted">בודקים…</p>}
       <Feedback m={msg} item={0} />
     </div>
   );
@@ -257,7 +339,7 @@ function BetPicker({ client, s, team, canSubmit, onChange }: CP) {
     <div className="task bet">
       <p>בחרו מסלול לפני שהחידה נחשפת:</p>
       {tracks.map((t) => (
-        <button key={t.id} className={`track-btn ${team.bet?.track_id === t.id ? 'on' : ''}`} disabled={!canSubmit} onClick={() => place(t.id)}>
+        <button key={t.id} className={`track-btn ${team.bet?.track_id === t.id ? 'chosen' : ''}`} disabled={!canSubmit} onClick={() => { tap(); place(t.id); }}>
           <b>{t.label}</b><span>הצלחה +{t.winMultiplier}× · כישלון −{t.lossMultiplier}×</span>
         </button>
       ))}

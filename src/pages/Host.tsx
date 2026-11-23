@@ -114,6 +114,11 @@ function Console() {
     return () => clearTimeout(id);
   }, [toast]);
   const teamName = (id: string) => teams.find((t) => t.id === id)?.name ?? '—';
+  const [transfer, setTransfer] = useState<{ name: string; code: string } | null>(null);
+  const issueTransfer = async (id: string, name: string) => {
+    const { data, error } = await client.rpc('host_issue_transfer_code', { p_team: id });
+    if (error) setToast({ text: friendlyError(error), bad: true }); else setTransfer({ name, code: data as string });
+  };
 
   return (
     <div className="host">
@@ -141,7 +146,8 @@ function Console() {
 
       {inst && ['setup', 'registration_open', 'registration_locked'].includes(inst.status) && (
         <section className="card">
-          <h2>הרשמה · קוד <span dir="ltr">{inst.join_code}</span></h2>
+          <h2>הרשמה</h2>
+          <p className="muted small">הקבוצות סורקות את ה־QR שעל המסך, כותבות שמות משתתפים ומקבלות שם מוגרל.</p>
           <div className="big-buttons">
             {inst.status !== 'registration_open'
               ? <button className="primary" disabled={busy} onClick={() => act(() => rpc('host_set_registration', { p_instance: inst.id, p_open: true }), 'ההרשמה נפתחה')}>פתיחת הרשמה</button>
@@ -150,7 +156,7 @@ function Console() {
               <button className="go" disabled={busy || teams.length < 2} onClick={() => ask(`להתחיל את המשחק עם ${teams.filter((t) => t.status === 'active').length} קבוצות?`, async () => { await act(() => rpc('host_start_game', { p_instance: inst.id }), 'המשחק התחיל!'); })}>התחלת המשחק</button>
             )}
           </div>
-          <TeamList teams={teams} onRemove={(id, name) => ask(`להסיר את "${name}"?`, async () => { await act(() => rpc('host_remove_team', { p_team: id })); })} />
+          <TeamList teams={teams} onTransfer={issueTransfer} onRemove={(id, name) => ask(`להסיר את "${name}"?`, async () => { await act(() => rpc('host_remove_team', { p_team: id })); })} />
         </section>
       )}
 
@@ -203,6 +209,10 @@ function Console() {
             onChoose={(o) => ask(`לאשר את חלופה ${o}? אחרי האישור לא ניתן לשנות.`, async () => { await act(() => rpc('host_choose_finals_option', { p_instance: inst.id, p_option: o }), `נבחרה חלופה ${o}`); })} />}
 
           <details className="subs">
+            <summary>קבוצות ({teams.filter((t) => t.status === 'active').length})</summary>
+            <TeamList teams={teams} onTransfer={issueTransfer} onRemove={(id, name) => ask(`להסיר את "${name}"?`, async () => { await act(() => rpc('host_remove_team', { p_team: id })); })} />
+          </details>
+          <details className="subs">
             <summary>הגשות בסבב ({subs.length})</summary>
             <table><tbody>{subs.map((s) => (
               <tr key={s.id}><td>{teamName(s.team_id)}</td><td>#{s.item_index + 1}/{s.attempt_no}</td><td>{STATUS[s.status] ?? s.status}</td>
@@ -224,6 +234,17 @@ function Console() {
         </section>
       )}
 
+      {transfer && (
+        <div className="modal" role="dialog" aria-modal="true">
+          <div className="modal-box enter">
+            <p>קוד מעבר לטלפון חדש עבור <b>{transfer.name}</b>:</p>
+            <div className="transfer-code" dir="ltr">{transfer.code}</div>
+            <p className="muted small">בטלפון החדש: סורקים את ה־QR, לוחצים "הטלפון של הקבוצה התחלף?" ומקלידים את הקוד. הקוד תקף ל־10 דקות, והטלפון הישן יתנתק.</p>
+            <button className="primary" onClick={() => setTransfer(null)}>סגירה</button>
+          </div>
+        </div>
+      )}
+
       {confirm && (
         <div className="modal" role="dialog" aria-modal="true">
           <div className="modal-box">
@@ -243,15 +264,16 @@ const PHASES: Record<string, string> = {
 };
 const STATUS: Record<string, string> = { received: 'התקבל', graded: 'נבדק', needs_review: 'להכרעה', late: 'באיחור' };
 
-function TeamList({ teams, onRemove }: { teams: { id: string; name: string; color: string; members: string[]; status: string }[]; onRemove: (id: string, name: string) => void }) {
+function TeamList({ teams, onRemove, onTransfer }: { teams: { id: string; name: string; color: string; members: string[]; status: string }[]; onRemove: (id: string, name: string) => void; onTransfer: (id: string, name: string) => void }) {
   const active = teams.filter((t) => t.status === 'active');
   return (
     <div className="team-list">
       <h3>{active.length} קבוצות רשומות</h3>
       {active.map((t) => (
-        <div key={t.id} className="row">
+        <div key={t.id} className="row enter">
           <span className="swatch" style={{ background: t.color }} />
           <span className="grow"><b>{t.name}</b> <small>{t.members.join(', ')}</small></span>
+          <button className="ghost small" onClick={() => onTransfer(t.id, t.name)}>טלפון חלופי</button>
           <button className="ghost small" onClick={() => onRemove(t.id, t.name)}>הסרה</button>
         </div>
       ))}

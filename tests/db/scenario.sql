@@ -51,34 +51,36 @@ select t.fails($q$select public.host_create_instance('00000000-0000-0000-0000-00
                'active_instance_exists', 'only one active instance');
 select public.host_set_registration((select v::uuid from t.ctx where k = 'inst'), true);
 
--- ── teams register ──
+-- ── teams register: names only, funny team name is drawn by the server ──
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000b1', false);
-insert into t.ctx select 'pin1', public.team_register((select v from t.ctx where k = 'code'), 'האריות', array['סבא','נועה','איתי']) ->> 'pin';
-select t.fails($q$select public.team_register((select v from t.ctx where k='code'), 'עוד', null)$q$, 'device_already_registered', 'one team per device');
+select t.fails($q$select public.team_register(array['  ', ''])$q$, 'members_required', 'at least one participant name');
+insert into t.ctx select 't1', public.team_register(array['סבא','נועה','איתי']) ->> 'team_id';
+select t.fails($q$select public.team_register(array['עוד'])$q$, 'device_already_registered', 'one team per phone');
 select t.ok((select count(*) from public.teams) = 0, 'team sees no rows in teams table (RLS)');
 select t.ok((select count(*) from public.game_instances) = 0, 'team sees no rows in instances (RLS)');
 select t.fails('select * from private.task_secrets', 'permission denied', 'team cannot read secrets');
 select t.fails($q$select public.host_start_game((select v::uuid from t.ctx where k='inst'))$q$, 'not_host', 'team cannot run host actions');
 select t.fails($q$select public.svc_record_submission(auth.uid(), gen_random_uuid(), 0, '{}')$q$, 'permission denied', 'team cannot call svc RPC');
+select t.ok(public.team_get_state() -> 'team' ->> 'pin' is null and public.team_get_state() -> 'team' ->> 'members' is not null, 'team view has members, no pin');
 
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000b2', false);
-select public.team_register((select v from t.ctx where k = 'code'), 'הנמרים', array['אמא']);
+insert into t.ctx select 't2', public.team_register(array['אמא']) ->> 'team_id';
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000b3', false);
-select t.fails($q$select public.team_register((select v from t.ctx where k='code'), 'האריות ', null)$q$, 'team_name_taken', 'duplicate team name');
-select public.team_register((select v from t.ctx where k = 'code'), 'הדובים', null);
-
-select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000c1', false);
-select t.fails($q$select public.team_join((select v from t.ctx where k='code'), '0000x')$q$, 'bad_pin', 'join with wrong pin');
-select public.team_join((select v from t.ctx where k = 'code'), (select v from t.ctx where k = 'pin1'));
-select t.ok(public.team_get_state() -> 'team' ->> 'role' = 'member', 'second phone joined as member');
-select t.ok(public.team_get_state() -> 'team' ->> 'pin' is null, 'member does not see the pin');
+insert into t.ctx select 't3', public.team_register(array['דוד']) ->> 'team_id';
+reset role;
+select t.ok((select count(distinct name) from public.teams) = 3, 'three different drawn names');
+select t.ok((select bool_and(char_length(n) between 2 and 30) from unnest(private.funny_team_names()) n), 'every funny name fits the name rule');
+select t.ok((select bool_and(name = any (private.funny_team_names())) from public.teams), 'all names from the funny list');
+select t.ok((select position('סבא' in state::text) = 0 from public.public_state), 'participant names never reach the screen');
+select t.ok((select state -> 'instance' -> 'join_code' from public.public_state) is null, 'no game code on the screen');
+set role authenticated;
 
 -- ── host starts ──
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a1', false);
 select t.fails($q$select public.host_start_game((select v::uuid from t.ctx where k='inst'))$q$, 'lock_registration_first', 'must lock registration first');
 select public.host_set_registration((select v::uuid from t.ctx where k = 'inst'), false);
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000ff', false);
-select t.fails($q$select public.team_register((select v from t.ctx where k='code'), 'מאחרים', null)$q$, 'registration_not_open', 'locked registration rejects teams');
+select t.fails($q$select public.team_register(array['מאחר'])$q$, 'registration_not_open', 'locked registration rejects teams');
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a1', false);
 select public.host_start_game((select v::uuid from t.ctx where k = 'inst'));
 select public.host_start_game((select v::uuid from t.ctx where k = 'inst')); -- double tap: no-op
@@ -88,7 +90,7 @@ select public.host_round_action((select v::uuid from t.ctx where k = 'inst'), 1,
 reset role;
 
 select t.ok((select state -> 'round' -> 'content' -> 'questions' is not null from public.public_state), 'content visible once open');
-select t.ok((select position('סופגנייה' in state::text) = 0 from public.public_state), 'answer key not in public state');
+select t.ok((select position('מתתיה' in state::text) = 0 and position('canonical' in state::text) = 0 from public.public_state), 'answer key not in public state');
 select t.ok((select state -> 'round' -> 'solution' from public.public_state) = 'null'::jsonb, 'no solution before reveal');
 
 -- ── submissions via service role ──
@@ -98,7 +100,7 @@ select t.ok((public.svc_record_submission('00000000-0000-0000-0000-0000000000b1'
 select t.ok((public.svc_record_submission('00000000-0000-0000-0000-0000000000b1', '11111111-1111-1111-1111-111111111111', 0,
              '{"choice":"א"}') ->> 'duplicate')::boolean, 'retry with same request id is idempotent');
 select t.fails($q$select public.svc_record_submission('00000000-0000-0000-0000-0000000000c1', gen_random_uuid(), 1, '{"choice":"א"}')$q$,
-               'captain_only', 'member phone cannot submit captain-only task');
+               'not_in_team', 'unregistered phone cannot submit');
 select t.fails($q$select public.svc_record_submission('00000000-0000-0000-0000-0000000000b1', gen_random_uuid(), 2, '{"choice":"א"}')$q$,
                'item_locked_or_out_of_order', 'sprint: cannot skip ahead');
 select t.fails($q$select public.svc_record_submission('00000000-0000-0000-0000-0000000000b1', gen_random_uuid(), 0, '{"choice":"ב"}')$q$,
@@ -161,7 +163,7 @@ select t.ok((select (state -> 'standings' -> 0 ->> 'total')::int from public.pub
 set role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a1', false);
 select public.host_next_round((select v::uuid from t.ctx where k = 'inst'));
-select public.host_adjust_score((select v::uuid from t.ctx where k = 'inst'), (select id from public.teams where name = 'הנמרים'), 2, 50, 'בדיקה');
+select public.host_adjust_score((select v::uuid from t.ctx where k = 'inst'), (select v::uuid from t.ctx where k = 't2'), 2, 50, 'בדיקה');
 reset role;
 select t.ok((select state -> 'standings' from public.public_state) = 'null'::jsonb, 'next round resets screen to auto view');
 select t.ok((select sum(total) from private.team_totals((select v::uuid from t.ctx where k = 'inst'), true)) = 60, 'unrevealed points stay hidden');
@@ -173,7 +175,7 @@ set role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a1', false);
 select public.host_round_action((select v::uuid from t.ctx where k = 'inst'), 8, 'open_betting');
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000c1', false);
-select t.fails($q$select public.team_place_bet('all')$q$, 'captain_only', 'only captain bets');
+select t.fails($q$select public.team_place_bet('all')$q$, 'not_in_team', 'only a registered phone bets');
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000b1', false);
 select t.ok((public.team_place_bet('all') ->> 'base_points')::int = 100, 'bet base = avg floored to 100 (min 100)');
 select t.fails($q$select public.team_place_bet('nope')$q$, 'unknown_track', 'unknown track rejected');
@@ -187,7 +189,20 @@ select t.fails($q$select public.team_place_bet('mid')$q$, 'betting_closed', 'no 
 reset role;
 select t.ok((select count(*) from public.bets where round_no = 8) = 3, 'every team has a bet after lock');
 select t.ok((select count(*) from public.bets where round_no = 8 and track_id = 'safe') = 2, 'non-betting teams got the safe track');
-select t.ok((select track_id from public.bets b join public.teams t2 on t2.id = b.team_id where t2.name = 'האריות') = 'all', 'chosen bet kept');
+select t.ok((select track_id from public.bets b where b.team_id = (select v::uuid from t.ctx where k = 't1')) = 'all', 'chosen bet kept');
+
+-- ── replacement phone via one-time transfer code ──
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a1', false);
+insert into t.ctx select 'xfer', public.host_issue_transfer_code((select v::uuid from t.ctx where k = 't1'));
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000c1', false);
+select t.fails($q$select public.team_claim_transfer('000000x')$q$, 'bad_transfer_code', 'wrong transfer code rejected');
+select t.ok((public.team_claim_transfer((select v from t.ctx where k = 'xfer')) ->> 'team_id') = (select v from t.ctx where k = 't1'), 'new phone took over the team');
+select t.fails($q$select public.team_claim_transfer((select v from t.ctx where k = 'xfer'))$q$, 'bad_transfer_code', 'transfer code is single-use');
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000b1', false);
+select t.ok((public.team_get_state() ->> 'registered')::boolean = false, 'old phone is disconnected');
+reset role;
+select t.ok((select count(*) from public.team_devices where team_id = (select v::uuid from t.ctx where k = 't1')) = 1, 'still exactly one phone per team');
 
 -- ── reset (two-step) ──
 set role authenticated;
@@ -212,3 +227,8 @@ select t.ok((select jsonb_array_length(state -> 'teams') from public.public_stat
 
 \o
 \echo 'ALL SCENARIO CHECKS PASSED'
+\o /dev/null
+select t.ok(not has_function_privilege('authenticated', 'public.team_join(text, text)', 'execute')
+        and not has_function_privilege('authenticated', 'public.team_register(text, text, text[])', 'execute')
+        and not has_function_privilege('authenticated', 'public.host_set_captain(uuid, uuid)', 'execute'), 'retired second-phone functions are not callable');
+\o

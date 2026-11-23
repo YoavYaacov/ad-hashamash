@@ -10,7 +10,9 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:db": "bash tests/db/run.sh",
-    "test:all": "vitest run && bash tests/db/run.sh"
+    "test:all": "vitest run && bash tests/db/run.sh",
+    "content": "esbuild scripts/gen-content.ts --bundle --platform=node --format=esm --outfile=node_modules/.tmp/gen.mjs --log-level=error && node node_modules/.tmp/gen.mjs",
+    "build:demo": "node scripts/build-demo.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.2",

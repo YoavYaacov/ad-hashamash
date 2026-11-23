@@ -18,7 +18,7 @@ interface Task { id: string; kind: string; title: string; instructions: string; 
   scoring: Scoring; attempts_limit: number | null; submission_policy: string; settings: Json; }
 interface Round { round_no: number; task_id: string; phase: string; item_count: number; opened_at: string | null; ends_at: string | null;
   paused_remaining_ms: number | null; public_payload: Json; solution_payload: Json; finalists: string[] | null }
-interface Team { id: string; name: string; color: string; members: string[]; join_pin: string; status: string; created_at: number; bot?: boolean }
+interface Team { id: string; name: string; color: string; members: string[]; status: string; created_at: number; bot?: boolean; transfer?: string }
 interface Device { user_id: string; team_id: string; role: 'captain' | 'member' }
 interface Sub { id: number; round_no: number; team_id: string; item_index: number; attempt_no: number; payload: Json; submitted_by: string;
   client_request_id: string; received_at: string; status: string; grade: Json; ratio: number | null }
@@ -28,6 +28,10 @@ interface ScoreEv { team_id: string; round_no: number; source_key: string; point
 const PALETTE = ['#F5B841', '#E8604C', '#4FB0C6', '#7BC67E', '#B57EDC', '#F28AB2', '#5C8DF6', '#F0935A', '#3FC1A5', '#D6C14A',
   '#C9705B', '#8E9BF5', '#E36FA0', '#62B6E8', '#A3C85A', '#F2A65A', '#9A7CF2', '#4CC0C0', '#E3B23C', '#D96C6C'];
 const GRACE_MS = 1500;
+const FUNNY = ['הסופגניות המעופפות', 'לביבות בלי גבולות', 'הסביבונים המסתחררים', 'פך השמן האבוד', 'המכבים המנומנמים',
+  'אנטיוכוס בהלם', 'הלביבה הלוהטת', 'דמי חנוכה דחופים', 'ריבה בכל מקום', 'אבקת סוכר על האף', 'הנרות הסוררים', 'מעוז צחוק',
+  'חשמונאים בפיג׳מה', 'מטבעות השוקולד', 'מגדל הסופגניות', 'השעווה המטפטפת', 'קופסת הגפרורים', 'סביבון על טורבו', 'נס גדול היה פה',
+  'פכים קטנים', 'המכבים מהקומה השלישית', 'נר לכל אחד', 'הקרב על הריבה', 'סבתא מכבית', 'שמן זית כתית'];
 
 export class MockServer {
   tasks = new Map<string, Task>((content.tasks as Task[]).map((t) => [t.id, t]));
@@ -85,8 +89,9 @@ export class MockServer {
                     total_teams: r.round_no === 9 ? (r.finalists?.length ?? 0) : active.length },
       };
     }
+    const tot = this.totals(true);
     const standings = ['standings', 'final_results'].includes(gi.screen_view)
-      ? this.totals(true).sort((a, b) => b.total - a.total) : null;
+      ? tot.map((x) => ({ ...x, rank: 1 + tot.filter((y) => y.total > x.total).length })).filter((x) => x.rank <= 5).sort((a, b) => b.total - a.total) : null;
     const f = this.finals?.chosen_option ? {
       chosen_option: this.finals.chosen_option,
       prizes: this.finals.options.options[this.finals.chosen_option === 'A' ? 0 : 1],
@@ -94,8 +99,8 @@ export class MockServer {
     } : null;
     this.publicRow = {
       state: {
-        instance: { id: gi.id, mode: gi.mode, status: gi.status, join_code: gi.join_code, current_round: gi.current_round, screen_view: gi.screen_view },
-        teams: active.map((t) => ({ id: t.id, name: t.name, color: t.color, members: t.members.length })),
+        instance: { id: gi.id, mode: gi.mode, status: gi.status, current_round: gi.current_round, screen_view: gi.screen_view },
+        teams: active.map((t) => ({ id: t.id, name: t.name, color: t.color })),
         round, standings, finals: f,
       },
       version: (this.publicRow?.version ?? 0) + 1,
@@ -120,7 +125,7 @@ export class MockServer {
         this.requireHost(uid);
         if (this.inst) fail('active_instance_exists');
         if (a.p_mode === 'live') fail('template_is_placeholder');
-        this.inst = { id: uuid(), mode: 'demo', status: 'setup', join_code: 'HNKA', current_round: null, screen_view: 'auto', settings: this.template.settings };
+        this.inst = { id: uuid(), mode: 'demo', status: 'setup', join_code: '', current_round: null, screen_view: 'auto', settings: this.template.settings };
         this.rounds = this.template.rounds.map((gr: Json) => {
           const k: Json = this.secrets[gr.task_id];
           return { round_no: gr.round_no, task_id: gr.task_id, phase: 'pending', item_count: Math.max(1, k.items?.length ?? k.stages?.length ?? 1),
@@ -176,15 +181,19 @@ export class MockServer {
         this.refresh(); return null;
       }
       case 'host_archive_instance': this.requireHost(uid); this.inst = null; this.rounds = []; this.teams = []; this.devices = []; this.subs = []; this.bets = []; this.scores = []; this.finals = null; this.refresh(); return null;
-      case 'team_register': return this.register(uid, a.p_join_code, a.p_name, a.p_members);
-      case 'team_join': {
-        if (!this.inst || this.inst.join_code !== String(a.p_join_code).trim().toUpperCase()) fail('bad_join_code');
-        const t = this.activeTeams().find((x) => x.join_pin === String(a.p_pin).trim()) ?? fail('bad_pin');
-        if (!this.devices.some((d) => d.user_id === uid)) {
-          if (this.devices.filter((d) => d.team_id === t.id).length >= 3) fail('too_many_devices');
-          this.devices.push({ user_id: uid!, team_id: t.id, role: 'member' });
-        }
-        return { team_id: t.id };
+      case 'team_register': return this.register(uid, a.p_members);
+      case 'host_issue_transfer_code': {
+        this.requireHost(uid);
+        const t = this.teams.find((x) => x.id === a.p_team) ?? fail('team_not_found');
+        t.transfer = String(Math.floor(Math.random() * 1e6)).padStart(6, '0');
+        return t.transfer;
+      }
+      case 'team_claim_transfer': {
+        const t = this.activeTeams().find((x) => x.transfer && x.transfer === String(a.p_code).trim()) ?? fail('bad_transfer_code');
+        this.devices = this.devices.filter((d) => d.team_id !== t.id && d.user_id !== uid);
+        this.devices.push({ user_id: uid!, team_id: t.id, role: 'captain' });
+        t.transfer = undefined;
+        return { team_id: t.id, name: t.name };
       }
       case 'team_get_state': return this.teamState(uid);
       case 'team_place_bet': {
@@ -244,23 +253,21 @@ export class MockServer {
     return target;
   }
 
-  private register(uid: string | null, code: string, name: string, members: string[] | null, bot = false) {
+  private register(uid: string | null, members: string[] | null, bot = false) {
     if (!uid) fail('not_signed_in');
-    if (!this.inst || this.inst.join_code !== String(code).trim().toUpperCase()) fail('bad_join_code');
+    if (!this.inst) fail('no_active_game');
     if (this.inst!.status !== 'registration_open') fail('registration_not_open');
     if (this.devices.some((d) => d.user_id === uid)) fail('device_already_registered');
-    const n = name.trim();
-    if (n.length < 2) fail('name_too_short');
-    if (this.teams.some((t) => t.name.toLowerCase() === n.toLowerCase())) fail('team_name_taken');
+    const m = (members ?? []).map((x) => x.trim()).filter(Boolean);
+    if (!m.length) fail('members_required');
     if (this.activeTeams().length >= 20) fail('too_many_teams');
-    let pin: string;
-    do { pin = String(Math.floor(Math.random() * 10000)).padStart(4, '0'); } while (this.teams.some((t) => t.join_pin === pin));
-    const t: Team = { id: uuid(), name: n, color: PALETTE[this.activeTeams().length % PALETTE.length],
-      members: (members ?? []).map((m) => m.trim()).filter(Boolean), join_pin: pin, status: 'active', created_at: Date.now(), bot };
+    const free = FUNNY.filter((n) => !this.teams.some((t) => t.name === n));
+    const name = free.length ? free[Math.floor(Math.random() * free.length)] : `קבוצה ${this.teams.length + 1}`;
+    const t: Team = { id: uuid(), name, color: PALETTE[this.activeTeams().length % PALETTE.length], members: m, status: 'active', created_at: Date.now(), bot };
     this.teams.push(t);
     this.devices.push({ user_id: uid!, team_id: t.id, role: 'captain' });
     this.refresh();
-    return { team_id: t.id, pin };
+    return { team_id: t.id, name };
   }
 
   private teamState(uid: string | null) {
@@ -279,12 +286,12 @@ export class MockServer {
       bet = b ? { track_id: b.track_id, base_points: b.base_points } : null;
     }
     let score: Json = null;
-    if (['standings', 'final_results'].includes(this.inst.screen_view)) {
+    if (['in_progress', 'finished'].includes(this.inst.status)) {
       const tot = this.totals(true), mine = tot.find((x) => x.team_id === t.id)!.total;
-      score = { total: mine, rank: 1 + tot.filter((x) => x.total > mine).length };
+      score = { total: mine, rank: 1 + tot.filter((x) => x.total > mine).length, teams: tot.length };
     }
     return { registered: true, instance_id: this.inst.id,
-      team: { id: t.id, name: t.name, color: t.color, members: t.members, status: t.status, role: d.role, pin: d.role === 'captain' ? t.join_pin : null },
+      team: { id: t.id, name: t.name, color: t.color, members: t.members, status: t.status, role: d.role },
       round_submissions: subs, bet, score };
   }
 
@@ -382,15 +389,8 @@ export class MockServer {
 
   // ───────── demo bots: extra teams so standings & finals have something to show ─────────
   addBots(n: number) {
-    const names = ['המכבים', 'בית חשמונאי', 'כד השמן', 'הסביבונים', 'הלביבות', 'אור לגויים', 'נס גדול', 'הסופגניות', 'פך קטן', 'יהודה והחברים'];
-    let added = 0;
-    for (const nm of names) {
-      if (added >= n) break;
-      if (this.teams.some((t) => t.name === nm)) continue;
-      const uid = `bot-${nm}`;
-      this.register(uid, this.inst!.join_code, nm, ['בוט'], true);
-      added++;
-    }
+    const people = [['סבא', 'יעל'], ['דנה', 'עומר'], ['שירה', 'אבא'], ['נגה', 'דוד'], ['רון', 'מיכל'], ['אלה', 'תום'], ['גיל', 'ליה'], ['הדס', 'בן']];
+    for (let k = 0; k < n; k++) this.register(`bot-${uuid()}`, people[(this.teams.length + k) % people.length], true);
   }
 
   /** Every bot team answers the current round (≈65% correct). */
@@ -399,7 +399,7 @@ export class MockServer {
     if (!r) return;
     const tt = this.task(r), key: Json = this.secrets[r.task_id];
     for (const t of this.activeTeams().filter((x) => x.bot)) {
-      const uid = `bot-${t.name}`;
+      const uid = this.devices.find((d) => d.team_id === t.id)!.user_id;
       if (r.phase === 'betting') { try { this.rpc(uid, 'team_place_bet', { p_track: ['safe', 'mid', 'all'][Math.floor(Math.random() * 3)] }); } catch { /* ignore */ } continue; }
       if (r.phase !== 'open') continue;
       if (r.round_no === 9 && !r.finalists?.includes(t.id)) continue;

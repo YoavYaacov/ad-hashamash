@@ -3,7 +3,7 @@ import type { TaskKind } from '../../supabase/functions/_shared/engine/tasks.ts'
 export type InstanceStatus = 'setup' | 'registration_open' | 'registration_locked' | 'in_progress' | 'finished' | 'archived';
 export type RoundPhase = 'pending' | 'intro' | 'betting' | 'bets_locked' | 'open' | 'paused' | 'closed' | 'graded' | 'revealed' | 'done';
 
-export interface PublicTeam { id: string; name: string; color: string; members: number }
+export interface PublicTeam { id: string; name: string; color: string }
 
 export interface PublicRound {
   no: number;
@@ -25,19 +25,19 @@ export interface PublicRound {
 }
 
 export interface PublicState {
-  instance: { id: string; mode: 'demo' | 'live'; status: InstanceStatus; join_code: string; current_round: number | null;
+  instance: { id: string; mode: 'demo' | 'live'; status: InstanceStatus; current_round: number | null;
               screen_view: 'auto' | 'standings' | 'final_results' };
   teams: PublicTeam[];
   round: PublicRound | null;
-  standings: { team_id: string; total: number }[] | null;
+  standings: { team_id: string; total: number; rank: number }[] | null;
   finals: { chosen_option: 'A' | 'B'; prizes: { firstPrize: number; secondPrize: number; label: string }; placements: { team_id: string; place: number }[] | null } | null;
 }
 
 export interface TeamState {
   registered: boolean;
   instance_id?: string;
-  team?: { id: string; name: string; color: string; members: string[]; status: string; role: 'captain' | 'member'; pin: string | null };
+  team?: { id: string; name: string; color: string; members: string[]; status: string; role: 'captain' };
   round_submissions?: { item_index: number; attempt_no: number; status: string; received_at: string; correct: boolean | null }[];
   bet?: { track_id: string; base_points: number } | null;
-  score?: { total: number; rank: number } | null;
+  score?: { total: number; rank: number; teams: number } | null;
 }

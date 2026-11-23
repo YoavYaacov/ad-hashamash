@@ -1,9 +1,11 @@
 /** Server error codes → short, friendly Hebrew. Unknown codes fall back to a generic message. */
 const MESSAGES: Record<string, string> = {
   not_signed_in: 'החיבור נותק. מנסים שוב…',
-  bad_join_code: 'קוד המשחק לא נמצא. בדקו את הקוד על המסך.',
+  no_active_game: 'אין כרגע משחק פתוח. חכו שהמנחה יפתח את ההרשמה.',
+  members_required: 'כתבו לפחות שם של משתתף אחד.',
+  bad_transfer_code: 'הקוד לא נכון או שפג תוקפו. בקשו קוד חדש מהמנחה.',
   registration_not_open: 'ההרשמה סגורה כרגע.',
-  device_already_registered: 'הטלפון הזה כבר רשום לקבוצה.',
+  device_already_registered: 'הטלפון הזה כבר רשום לקבוצה אחרת.',
   team_name_taken: 'השם הזה כבר תפוס. נסו שם אחר.',
   too_many_teams: 'הגענו למספר הקבוצות המרבי.',
   bad_pin: 'קוד ההצטרפות של הקבוצה שגוי.',

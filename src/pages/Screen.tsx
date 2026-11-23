@@ -11,7 +11,22 @@ import { Menorah } from '../components/Menorah';
 import { Timer } from '../components/Timer';
 import { SymbolTile } from '../components/Symbols';
 import { APP_NAME, FINALE_NAME } from '../config';
+import { Scene } from '../components/Scene';
+import type { SceneSpec } from '../content/scenes';
 
+
+/** Slow rising embers: the screen should feel alive even when nothing happens. */
+const EMBERS = Array.from({ length: 26 }, (_, i) => ({
+  x: `${(i * 37) % 100}%`, s: `${4 + ((i * 7) % 9)}px`, d: `${14 + ((i * 11) % 16)}s`, delay: `${-((i * 13) % 28)}s`,
+  dx: `${((i % 5) - 2) * 18}px`, o: 0.35 + ((i * 3) % 5) / 10,
+}));
+function Embers() {
+  return (
+    <div className="embers" aria-hidden="true">
+      {EMBERS.map((e, i) => <i key={i} style={{ '--x': e.x, '--s': e.s, '--d': e.d, '--delay': e.delay, '--dx': e.dx, '--o': e.o } as React.CSSProperties} />)}
+    </div>
+  );
+}
 
 export default function Screen() {
   const client = useClient('screen');
@@ -20,78 +35,77 @@ export default function Screen() {
 
   return (
     <div className="screen-wrap"><div className="screen stage-16x9">
+      <Embers />
       {conn !== 'live' && <div className="conn-badge" aria-live="polite">{conn === 'connecting' ? 'מתחבר…' : 'מתחבר מחדש…'}</div>}
       {state?.instance.mode === 'demo' && <div className="demo-badge">משחק ניסיון</div>}
-      {!state ? <Splash /> : <Body s={state} offset={offset} />}
+      <Body s={state} offset={offset} />
     </div></div>
   );
 }
 
-function Body({ s, offset }: { s: PublicState; offset: number }) {
+function Body({ s, offset }: { s: PublicState | null; offset: number }) {
+  if (!s) return <Lobby s={null} />;
   const { status, screen_view } = s.instance;
-  if (status === 'finished' || screen_view === 'final_results') return <FinalResults s={s} />;
-  if (screen_view === 'standings') return <Standings s={s} />;
-  if (status === 'setup') return <Splash />;
-  if (status === 'registration_open' || status === 'registration_locked') return <Registration s={s} />;
-  if (status === 'in_progress' && s.round) return <RoundView s={s} offset={offset} />;
-  return <Splash />;
+  if (status === 'finished' || screen_view === 'final_results') return <FinalResults key="final" s={s} />;
+  if (screen_view === 'standings') return <Standings key={`st-${s.round?.no}`} s={s} />;
+  if (status === 'in_progress' && s.round) return <RoundView key={`r-${s.round.no}`} s={s} offset={offset} />;
+  return <Lobby s={s} />;
 }
 
-function Splash() {
-  return (
-    <div className="splash center-col">
-      <Menorah lit={8} shamashLit size={560} />
-      <h1 className="logo">{APP_NAME}</h1>
-      <p className="tagline">שמונה נרות · שַׁמָּשׁ אחד · משפחה אחת</p>
-      <p className="hint">הכינו טלפון אחד לכל קבוצה</p>
-    </div>
-  );
+function joinUrl() {
+  return `${location.origin}${import.meta.env.BASE_URL}play`;
 }
 
-function joinUrl(code: string) {
-  return `${location.origin}${import.meta.env.BASE_URL}play?code=${code}`;
-}
-
-function Registration({ s }: { s: PublicState }) {
+/**
+ * Idle and registration are ONE layout: when the host opens registration the title glides up,
+ * and the QR, instructions and the arriving teams fade in beneath it.
+ */
+function Lobby({ s }: { s: PublicState | null }) {
+  const status = s?.instance.status;
+  const reg = status === 'registration_open' || status === 'registration_locked';
+  const open = status === 'registration_open';
   const [qr, setQr] = useState('');
-  const url = joinUrl(s.instance.join_code);
+  const url = joinUrl();
   useEffect(() => {
     QRCode.toDataURL(url, { margin: 1, width: 520, color: { dark: '#0b1026', light: '#fdf6e3' } }).then(setQr);
   }, [url]);
-  const open = s.instance.status === 'registration_open';
   return (
-    <div className="registration">
-      <div className="reg-side">
-        <h1 className="logo small">{APP_NAME}</h1>
-        {open ? (
-          <>
-            {qr && <img src={qr} alt={`קוד QR להצטרפות: ${url}`} className="qr" />}
-            <div className="join-code">קוד משחק: <b dir="ltr">{s.instance.join_code}</b></div>
-            <div className="join-url" dir="ltr">{url.replace(/^https?:\/\//, '')}</div>
-            <ol className="steps">
-              <li><span>1</span>סורקים את הקוד</li>
-              <li><span>2</span>בוחרים שם קבוצה ומזינים משתתפים</li>
-              <li><span>3</span>מצטרפים וממתינים לתחילת המשחק</li>
-            </ol>
-          </>
-        ) : <div className="locked-msg">ההרשמה נסגרה — עוד רגע מתחילים!</div>}
+    <div className={`lobby ${reg ? 'reg' : 'idle'}`}>
+      <div className="lobby-title">
+        <Menorah lit={8} shamashLit size={520} />
+        <h1 className="logo">{APP_NAME}</h1>
+        {!reg && <p className="tagline enter-slow">שמונה נרות · שַׁמָּשׁ אחד · משפחה אחת</p>}
       </div>
-      <TeamCloud teams={s.teams} />
+      <div className="lobby-body">
+        <div className="join">
+          {open ? (
+            <>
+              {qr && <img src={qr} alt={`קוד QR להצטרפות: ${url}`} className="qr" />}
+              <div className="join-url" dir="ltr">{url.replace(/^https?:\/\//, '')}</div>
+              <ol className="steps">
+                <li><span>1</span>סורקים את הקוד, טלפון אחד לכל קבוצה</li>
+                <li><span>2</span>כותבים את שמות המשתתפים</li>
+                <li><span>3</span>מקבלים שם קבוצה מצחיק, ומחכים להתחלה</li>
+              </ol>
+            </>
+          ) : <div className="locked-msg enter">ההרשמה נסגרה. עוד רגע מתחילים!</div>}
+        </div>
+        <TeamCloud teams={s?.teams ?? []} />
+      </div>
     </div>
   );
 }
 
-/** Teams appear one by one as glowing "flames" — scales nicely to 17+ teams. */
+/** Teams appear one by one as glowing "flames". Only the drawn name is shown, never participants. */
 function TeamCloud({ teams }: { teams: PublicTeam[] }) {
   return (
     <div className="team-cloud" data-count={teams.length}>
-      <div className="team-count">{teams.length} קבוצות</div>
+      <div className="team-count">{teams.length === 0 ? 'מחכים לקבוצה הראשונה…' : `${teams.length} קבוצות כבר כאן`}</div>
       <div className="team-grid">
-        {teams.map((t, i) => (
-          <div key={t.id} className="team-chip" style={{ '--c': t.color, animationDelay: `${(i % 6) * 40}ms` } as React.CSSProperties}>
+        {teams.map((t) => (
+          <div key={t.id} className="team-chip new" style={{ '--c': t.color } as React.CSSProperties}>
             <span className="chip-flame" aria-hidden="true" />
             <span className="chip-name">{t.name}</span>
-            <span className="chip-members">{t.members > 0 ? `${t.members} משתתפים` : ''}</span>
           </div>
         ))}
       </div>
@@ -123,7 +137,7 @@ function RoundView({ s, offset }: { s: PublicState; offset: number }) {
   const litBefore = Math.min(8, r.no - 1);
   const roundLabel = r.is_finale ? FINALE_NAME : `נר ${r.no}`;
   return (
-    <div className={`round phase-${r.phase}`}>
+    <div className={`round phase-${r.phase} enter-slow`}>
       <header className="round-header">
         <Menorah lit={r.is_finale ? 8 : litBefore} shamashLit={r.is_finale && ['revealed', 'done'].includes(r.phase)}
                  active={r.is_finale ? null : r.no - 1} size={260} />
@@ -134,7 +148,8 @@ function RoundView({ s, offset }: { s: PublicState; offset: number }) {
         {(r.phase === 'open' || r.phase === 'paused') && <Timer endsAt={r.ends_at} pausedMs={r.paused_remaining_ms} offset={offset} total={r.duration_sec} big />}
       </header>
 
-      <main className="round-main">
+      <main className="round-main" key={r.phase}>
+        <div className="enter" style={{ width: '100%', display: 'grid', placeItems: 'center' }}>
         {r.phase === 'intro' && <p className="instructions">{r.instructions}</p>}
         {r.phase === 'betting' && <BetBoard s={s} />}
         {r.phase === 'bets_locked' && <div className="big-msg">ההימורים ננעלו. החידה נחשפת…</div>}
@@ -142,6 +157,7 @@ function RoundView({ s, offset }: { s: PublicState; offset: number }) {
         {r.phase === 'closed' && <div className="big-msg">הזמן נגמר! ההגשות נסגרו.</div>}
         {r.phase === 'graded' && <div className="big-msg">התשובות נבדקו. מחכים למנחה…</div>}
         {(r.phase === 'revealed' || r.phase === 'done') && <Solution s={s} />}
+        </div>
       </main>
 
       {(r.phase === 'open' || r.phase === 'paused' || r.phase === 'closed') && (
@@ -175,11 +191,20 @@ function ScreenContent({ s }: { s: PublicState }) {
         </div>
       );
     case 'truth_or_fiction':
-      return <ol className="facts">{(c.items?.[0]?.facts ?? []).map((f: string, i: number) => <li key={i}>{f}</li>)}</ol>;
+      return (
+        <div className="fact-sets">
+          {(c.items ?? []).map((it: any, k: number) => (
+            <div key={k} className="fact-set enter" style={{ animationDelay: `${k * 0.2}s` }}>
+              <h4>סט {k + 1}</h4>
+              <ol>{it.facts.map((f: string, i: number) => <li key={i}>{f}</li>)}</ol>
+            </div>
+          ))}
+        </div>
+      );
     case 'ordering':
       return <div className="order-items">{(c.items ?? []).map((it: any) => <div key={it.id} className="order-item">{it.label}</div>)}</div>;
     case 'three_pictures':
-      return <div className="pictures">{['א', 'ב', 'ג'].map((l) => <div key={l} className="picture-placeholder">תמונה {l}<small>(נכס גרפי בהכנה)</small></div>)}</div>;
+      return <PictureHeats heats={c.heats ?? []} />;
     case 'bet_puzzle':
       return (
         <div className="bet-puzzle">
@@ -250,23 +275,20 @@ function Solution({ s }: { s: PublicState }) {
 function useRanked(s: PublicState) {
   return useMemo(() => {
     const names = new Map(s.teams.map((t) => [t.id, t]));
-    let prev: number | null = null, rank = 0;
-    return (s.standings ?? []).map((x, i) => {
-      if (x.total !== prev) { rank = i + 1; prev = x.total; }
-      return { ...x, rank, team: names.get(x.team_id) };
-    });
+    return (s.standings ?? []).map((x: any) => ({ ...x, team: names.get(x.team_id) }));
   }, [s]);
 }
 
+/** Top 5 only. Each team sees its own exact place on its phone. */
 function Standings({ s }: { s: PublicState }) {
   const ranked = useRanked(s);
   const max = Math.max(1, ...ranked.map((r) => r.total));
   return (
-    <div className="standings">
-      <h2>טבלת הניקוד</h2>
-      <div className={`standings-list ${ranked.length > 10 ? 'two-col' : ''}`}>
-        {ranked.map((r) => (
-          <div key={r.team_id} className="standing-row" style={{ '--c': r.team?.color } as React.CSSProperties}>
+    <div className="standings top5">
+      <h2 className="enter">חמש המובילות</h2>
+      <div className="standings-list">
+        {ranked.map((r, i) => (
+          <div key={r.team_id} className="standing-row" style={{ '--c': r.team?.color, '--i': ranked.length - 1 - i } as React.CSSProperties}>
             <span className="rank">{r.rank}</span>
             <span className="name">{r.team?.name}</span>
             <span className="bar"><span style={{ width: `${(100 * r.total) / max}%` }} /></span>
@@ -274,6 +296,7 @@ function Standings({ s }: { s: PublicState }) {
           </div>
         ))}
       </div>
+      <p className="hint enter-slow" style={{ animationDelay: '1.5s' }}>המקום והניקוד של כל קבוצה מופיעים בטלפון שלה</p>
     </div>
   );
 }
@@ -284,14 +307,38 @@ function FinalResults({ s }: { s: PublicState }) {
   return (
     <div className="final-results">
       <Menorah lit={8} shamashLit size={300} />
-      <div className="champion-label">{champ.length > 1 ? 'האלופות' : 'האלופה'}</div>
-      <h1 className="champion">{champ.map((c) => c.team?.name).join(' · ')}</h1>
-      <div className="final-list">
-        {ranked.slice(champ.length).map((r) => (
-          <div key={r.team_id} className="final-row"><span>{r.rank}</span><span>{r.team?.name}</span><span>{r.total.toLocaleString('he-IL')}</span></div>
+      <div className="champion-label enter">{champ.length > 1 ? 'האלופות' : 'האלופה'}</div>
+      <h1 className="champion" style={{ animation: 'pop-name 1.4s cubic-bezier(.2,1.4,.4,1) .4s both' }}>{champ.map((c) => c.team?.name).join(' · ')}</h1>
+      <div className="final-list stagger">
+        {ranked.slice(champ.length).map((r, i) => (
+          <div key={r.team_id} className="final-row" style={{ '--i': i + 6 } as React.CSSProperties}><span>{r.rank}</span><span>{r.team?.name}</span><span>{r.total.toLocaleString('he-IL')}</span></div>
         ))}
       </div>
       <div className="confetti" aria-hidden="true">{Array.from({ length: 40 }, (_, i) => <i key={i} style={{ '--i': i } as React.CSSProperties} />)}</div>
+    </div>
+  );
+}
+
+/** One heat at a time, large; rotates every 20 s with an indicator (phones show all heats). */
+function PictureHeats({ heats }: { heats: { pictures: SceneSpec[] }[] }) {
+  const [k, setK] = useState(0);
+  useEffect(() => {
+    if (heats.length < 2) return;
+    const id = setInterval(() => setK((x) => (x + 1) % heats.length), 20_000);
+    return () => clearInterval(id);
+  }, [heats.length]);
+  const h = heats[k];
+  if (!h) return null;
+  return (
+    <div style={{ width: '100%' }}>
+      <div className="heat-label">מקצה {k + 1} מתוך {heats.length}
+        <span className="heat-dots">{heats.map((_, i) => <i key={i} className={i === k ? 'on' : ''} />)}</span>
+      </div>
+      <div className="pictures-real enter" key={k}>
+        {h.pictures.map((p, j) => (
+          <figure key={j}><Scene s={p} label={`מקצה ${k + 1}, תמונה ${['א', 'ב', 'ג'][j]}`} /><figcaption>{['א', 'ב', 'ג'][j]}</figcaption></figure>
+        ))}
+      </div>
     </div>
   );
 }
