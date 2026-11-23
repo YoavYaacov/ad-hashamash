@@ -127,6 +127,9 @@ export const TASKS: TaskDef[] = [
     public_content: {
       people: ['סבתא רחל', 'דוד אבי', 'נועה', 'איתי'],
       items: ['חנוכיית כסף', 'חנוכיית זכוכית לשמן', 'חנוכיית לגו', 'חנוכיית חימר'],
+      // Art ids for the drawings (src/components/BetArt.tsx). Order matches people / items.
+      people_art: ['grandma', 'uncle', 'girl', 'boy'],
+      items_art: ['silver', 'glass', 'lego', 'clay'],
       clues: [
         'דוד אבי בחר בחנוכייה שאינה עשויה ממתכת, וגם לא מזכוכית.',
         'נועה ואיתי לא בחרו בחנוכיית הכסף.',

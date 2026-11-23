@@ -195,6 +195,7 @@ select t.fails($q$select public.team_place_bet('nope')$q$, 'unknown_track', 'unk
 select t.ok(public.team_get_state() -> 'bet' ->> 'track_id' = 'all', 'team sees its bet');
 select t.ok((select position('assignment' in state::text) = 0 from public.public_state), 'bet puzzle answer not public');
 select t.ok((select state -> 'round' -> 'content' from public.public_state) = 'null'::jsonb, 'puzzle hidden during betting');
+select t.ok((select (state -> 'round' ->> 'bet_base')::int from public.public_state) = 100, 'stake in points is published for the tracks');
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a1', false);
 select public.host_round_action((select v::uuid from t.ctx where k = 'inst'), 8, 'lock_bets');
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000b2', false);

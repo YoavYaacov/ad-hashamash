@@ -13,7 +13,9 @@ import { SymbolTile } from '../components/Symbols';
 import { APP_NAME, FINALE_NAME } from '../config';
 import { Scene } from '../components/Scene';
 import { Swap } from '../components/Swap';
+import { Character, MenorahVariant } from '../components/BetArt';
 import { SafeArt } from '../components/Safe';
+import { StakeLines } from '../components/BetStakes';
 import type { SceneSpec } from '../content/scenes';
 
 
@@ -225,7 +227,20 @@ function ScreenContent({ s }: { s: PublicState }) {
     case 'bet_puzzle':
       return (
         <div className="bet-puzzle">
-          <div className="cols"><ul>{(c.people ?? []).map((p: string) => <li key={p}>{p}</li>)}</ul><ul>{(c.items ?? []).map((p: string) => <li key={p}>{p}</li>)}</ul></div>
+          <div className="bet-cast stagger">
+            {(c.people ?? []).map((p: string, i: number) => (
+              <figure key={p} className="cast person" style={{ '--i': i } as React.CSSProperties}>
+                {c.people_art?.[i] && <Character id={c.people_art[i]} size={96} />}<figcaption>{p}</figcaption>
+              </figure>
+            ))}
+          </div>
+          <div className="bet-cast stagger">
+            {(c.items ?? []).map((p: string, i: number) => (
+              <figure key={p} className="cast menorah" style={{ '--i': i + 4 } as React.CSSProperties}>
+                {c.items_art?.[i] && <MenorahVariant id={c.items_art[i]} size={96} />}<figcaption>{p}</figcaption>
+              </figure>
+            ))}
+          </div>
           <ol className="clues">{(c.clues ?? []).map((cl: string, i: number) => <li key={i}>{cl}</li>)}</ol>
         </div>
       );
@@ -239,19 +254,19 @@ function ScreenContent({ s }: { s: PublicState }) {
 
 function BetBoard({ s }: { s: PublicState }) {
   const tracks = s.round?.bet_tracks ?? [];
+  const base = s.round?.bet_base ?? 0;
   return (
     <div className="bet-board">
       <p className="instructions">בחרו מסלול בטלפון. החידה תיחשף רק אחרי שכל ההימורים יינעלו.</p>
-      <div className="tracks">
-        {tracks.map((t) => (
-          <div key={t.id} className="track">
+      <div className="tracks stagger">
+        {tracks.map((t, i) => (
+          <div key={t.id} className="track" style={{ '--i': i } as React.CSSProperties}>
             <h3>{t.label}</h3>
-            <p>הצלחה: <b>+{t.winMultiplier}×</b> בסיס</p>
-            <p>כישלון: <b>−{t.lossMultiplier}×</b> בסיס</p>
+            <StakeLines t={t} base={base} />
           </div>
         ))}
       </div>
-      <p className="hint">הניקוד אף פעם לא יורד מתחת לאפס.</p>
+      <p className="hint">אם לא בוחרים מסלול, נשארים ב"{tracks.find((t) => t.lossMultiplier === 0)?.label ?? 'זהיר'}". הניקוד אף פעם לא יורד מתחת ל־0.</p>
     </div>
   );
 }
@@ -282,7 +297,19 @@ function Solution({ s }: { s: PublicState }) {
       body = <ol className="sol-order">{sol.correct.map((id: string) => <li key={id}>{String(lbl.get(id) ?? id)}</li>)}</ol>; break;
     }
     case 'bet_puzzle':
-      body = <ul className="sol-list">{sol.assignment.map((j: number, i: number) => <li key={i}><span className="q">{c.people?.[i]}</span><b>{c.items?.[j]}</b></li>)}</ul>; break;
+      body = (
+        <div className="bet-solution stagger">
+          {sol.assignment.map((j: number, i: number) => (
+            <div key={i} className="pair" style={{ '--i': i } as React.CSSProperties}>
+              {c.people_art?.[i] && <Character id={c.people_art[i]} size={84} />}
+              <span className="who">{c.people?.[i]}</span>
+              <span className="arrow" aria-hidden="true">←</span>
+              {c.items_art?.[j] && <MenorahVariant id={c.items_art[j]} size={84} />}
+              <b>{c.items?.[j]}</b>
+            </div>
+          ))}
+        </div>
+      ); break;
     case 'sequence_memory':
       body = <div className="sol-seq">{sol.stages[sol.stages.length - 1].map((id: string, i: number) => <SymbolTile key={i} id={id} size={64} />)}</div>; break;
     case 'sliding_puzzle':
@@ -320,6 +347,39 @@ function Standings({ s }: { s: PublicState }) {
   );
 }
 
+/** Lots of confetti: a steady rain plus two side cannons that fire in waves. Pure CSS, deterministic. */
+const CONFETTI_COLORS = ['#e9b949', '#f5d77a', '#5c8df6', '#7bc67e', '#f28ab2', '#b57edc', '#4fb0c6', '#f4ead2', '#e8604c'];
+const SHAPES = ['rect', 'strip', 'circle', 'star'];
+function Confetti() {
+  const rain = useMemo(() => Array.from({ length: 140 }, (_, i) => {
+    const r = (k: number) => ((Math.sin(i * 12.9898 + k * 78.233) * 43758.5453) % 1 + 1) % 1;
+    return {
+      x: r(1) * 100, d: 4.5 + r(2) * 4, delay: -r(3) * 9, drift: (r(4) - .5) * 18, spin: 360 + r(5) * 900,
+      s: .6 + r(6) * .9, c: CONFETTI_COLORS[i % CONFETTI_COLORS.length], shape: SHAPES[Math.floor(r(7) * SHAPES.length)],
+    };
+  }), []);
+  const bursts = useMemo(() => Array.from({ length: 72 }, (_, i) => {
+    const r = (k: number) => ((Math.sin(i * 39.3467 + k * 11.135) * 24634.6345) % 1 + 1) % 1;
+    const side = i % 2 ? 1 : -1;
+    return {
+      side, wave: Math.floor(i / 24), bx: side * (18 + r(1) * 38), by: -(30 + r(2) * 45), spin: 300 + r(3) * 700,
+      c: CONFETTI_COLORS[(i * 5) % CONFETTI_COLORS.length], shape: SHAPES[Math.floor(r(4) * SHAPES.length)], s: .7 + r(5) * .8,
+    };
+  }), []);
+  return (
+    <div className="confetti" aria-hidden="true">
+      {rain.map((p, i) => (
+        <i key={i} className={`cf ${p.shape}`} style={{ left: `${p.x}%`, background: p.shape === 'star' ? undefined : p.c, color: p.c,
+          '--d': `${p.d}s`, '--delay': `${p.delay}s`, '--drift': `${p.drift}cqw`, '--spin': `${p.spin}deg`, '--s': p.s } as React.CSSProperties} />
+      ))}
+      {bursts.map((p, i) => (
+        <i key={`b${i}`} className={`burst ${p.shape} ${p.side > 0 ? 'from-left' : 'from-right'}`} style={{ background: p.shape === 'star' ? undefined : p.c, color: p.c,
+          '--bx': `${p.bx}cqw`, '--by': `${p.by}cqh`, '--spin': `${p.spin}deg`, '--s': p.s, '--delay': `${.3 + p.wave * 2.6 + (i % 6) * .05}s` } as React.CSSProperties} />
+      ))}
+    </div>
+  );
+}
+
 function FinalResults({ s }: { s: PublicState }) {
   const ranked = useRanked(s);
   const champ = ranked.filter((r) => r.rank === 1);
@@ -333,7 +393,7 @@ function FinalResults({ s }: { s: PublicState }) {
           <div key={r.team_id} className="final-row" style={{ '--i': i + 6 } as React.CSSProperties}><span>{r.rank}</span><span>{r.team?.name}</span><span>{r.total.toLocaleString('he-IL')}</span></div>
         ))}
       </div>
-      <div className="confetti" aria-hidden="true">{Array.from({ length: 40 }, (_, i) => <i key={i} style={{ '--i': i } as React.CSSProperties} />)}</div>
+      <Confetti />
     </div>
   );
 }

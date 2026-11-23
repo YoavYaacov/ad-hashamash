@@ -85,6 +85,7 @@ export class MockServer {
         revealed_at: r.revealed_at ?? null, screen_item: r.screen_item ?? 0, pin_solution: !!r.pin_solution,
         content: ['open', 'paused', 'closed', 'graded', 'revealed', 'done'].includes(r.phase) ? r.public_payload : null,
         bet_tracks: tt.kind === 'bet_puzzle' ? tt.settings.bet.tracks : null,
+        bet_base: tt.kind === 'bet_puzzle' ? this.betBase(r) : null,
         solution: ['revealed', 'done'].includes(r.phase) ? r.solution_payload : null,
         finalists: r.finalists,
         progress: { submitted_teams: new Set(this.subs.filter((s) => s.round_no === r.round_no && s.status !== 'late').map((s) => s.team_id)).size,

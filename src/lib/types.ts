@@ -22,6 +22,7 @@ export interface PublicRound {
   pin_solution: boolean;
   content: Record<string, any> | null;
   bet_tracks: { id: string; label: string; winMultiplier: number; lossMultiplier: number }[] | null;
+  bet_base: number | null;
   solution: Record<string, any> | null;
   finalists: string[] | null;
   progress: { submitted_teams: number; total_teams: number };

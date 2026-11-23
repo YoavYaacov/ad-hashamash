@@ -124,7 +124,18 @@ label { display: grid; gap: .35em; font-weight: 600; }
 .bet-board .tracks { display: flex; gap: 2cqw; justify-content: center; }
 .track { background: var(--night-2); border-radius: var(--radius); padding: 1em 2em; text-align: center; border: 2px solid var(--night-3); }
 .track h3 { color: var(--gold); margin: 0 0 .4em; font-size: 1.5em; }
-.bet-puzzle .cols { display: flex; gap: 6cqw; font-size: 1.4em; }
+.bet-puzzle { display: grid; gap: 2.2cqh; justify-items: center; }
+.bet-cast { display: flex; gap: 3cqw; justify-content: center; }
+.bet-cast .cast { margin: 0; display: grid; justify-items: center; gap: .3em; background: var(--night-2); border-radius: var(--radius); padding: .6em 1.2em .5em; min-width: 9em; }
+.bet-cast .cast.menorah { background: color-mix(in srgb, var(--gold) 10%, var(--night-2)); }
+.bet-cast .bet-art { width: 7cqh; height: 7cqh; min-width: 56px; min-height: 56px; }
+.bet-cast figcaption { font-size: 1.05em; }
+.bet-cast .cast { animation: pop .6s cubic-bezier(.2,1.3,.4,1) both; animation-delay: calc(var(--i) * .12s); }
+.bet-puzzle .clues { margin: 0; font-size: 1.15em; display: grid; gap: .5cqh; max-width: 46em; }
+.bet-solution { display: grid; grid-template-columns: 1fr 1fr; gap: 1.6cqh 3cqw; }
+.bet-solution .pair { display: grid; grid-template-columns: auto 1fr auto auto 1fr; align-items: center; gap: .7em; background: var(--night-2); border-radius: var(--radius); padding: .4em 1em; font-size: 1.2em; animation: pop .6s cubic-bezier(.2,1.3,.4,1) both; animation-delay: calc(var(--i) * .25s + .2s); }
+.bet-solution .bet-art { width: 9cqh; height: 9cqh; } .bet-solution .who { text-align: right; } .bet-solution b { color: var(--gold); }
+.bet-solution .arrow { color: var(--gold-soft); font-size: 1.4em; }
 .finale-puzzle { font-size: 2em; text-align: center; max-width: 28em; }
 .solution { text-align: center; display: grid; gap: 2cqh; justify-items: center; }
 .solution h3 { font-size: 1.6em; color: var(--gold-soft); margin: 0; }
@@ -154,8 +165,28 @@ label { display: grid; gap: .35em; font-weight: 600; }
 .champion { font-size: 4.5em; margin: 0; font-family: var(--font); color: var(--gold); text-shadow: 0 0 50px rgba(233,185,73,.5); }
 .final-list { display: grid; grid-template-columns: repeat(2, minmax(14em, 1fr)); gap: .6cqh 3cqw; }
 .final-row { display: grid; grid-template-columns: 2em 1fr auto; gap: 1em; }
-.confetti i { position: absolute; top: -5cqh; left: calc(var(--i) * 2.5%); width: .5em; height: 1em; background: hsl(calc(var(--i) * 37), 80%, 65%); animation: fall calc(4s + var(--i) * .07s) linear infinite; animation-delay: calc(var(--i) * -.23s); }
-@keyframes fall { to { transform: translateY(110cqh) rotate(720deg); } }
+/* Confetti: steady rain + side cannons in waves */
+.confetti { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 1; }
+.confetti i { position: absolute; display: block; width: calc(.55em * var(--s, 1)); height: calc(1em * var(--s, 1)); border-radius: 2px; will-change: transform; }
+.confetti i.strip { width: calc(.28em * var(--s, 1)); height: calc(1.5em * var(--s, 1)); }
+.confetti i.circle { width: calc(.7em * var(--s, 1)); height: calc(.7em * var(--s, 1)); border-radius: 50%; }
+.confetti i.star { width: calc(1em * var(--s, 1)); height: calc(1em * var(--s, 1)); background: currentColor; clip-path: polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); }
+.confetti i.cf { top: -6cqh; animation: cf-fall var(--d) linear var(--delay) infinite; }
+@keyframes cf-fall {
+  0% { transform: translate3d(0, 0, 0) rotate(0) rotateY(0); }
+  50% { transform: translate3d(var(--drift), 55cqh, 0) rotate(calc(var(--spin) * .5)) rotateY(180deg); }
+  100% { transform: translate3d(calc(var(--drift) * -.4), 112cqh, 0) rotate(var(--spin)) rotateY(360deg); }
+}
+.confetti i.burst { bottom: -2cqh; opacity: 0; animation: cf-burst 7.8s cubic-bezier(.15,.7,.3,1) var(--delay) infinite; }
+.confetti i.burst.from-left { left: 2cqw; } .confetti i.burst.from-right { right: 2cqw; }
+@keyframes cf-burst {
+  0% { opacity: 0; transform: translate3d(0, 0, 0) scale(.3) rotate(0); }
+  3% { opacity: 1; }
+  22% { transform: translate3d(var(--bx), var(--by), 0) scale(1) rotate(calc(var(--spin) * .4)); }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: translate3d(calc(var(--bx) * 1.35), 30cqh, 0) scale(1) rotate(var(--spin)); }
+}
+.final-results > :not(.confetti) { position: relative; z-index: 2; }
 
 /* ══════════════ /play (mobile first) ══════════════ */
 .play { min-height: 100vh; display: flex; flex-direction: column; font-size: 18px; }
@@ -193,16 +224,39 @@ fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: .5rem; } legend
 .code-input { font-size: 2.6rem; text-align: center; letter-spacing: .5em; font-variant-numeric: tabular-nums; }
 .tabs { display: flex; gap: .4rem; justify-content: center; }
 .tabs button { width: 52px; } .tabs button.on { background: var(--gold); color: var(--night); } .tabs button.solved { box-shadow: inset 0 0 0 3px var(--ok); }
-.order-list { list-style: none; padding: 0; margin: 0; display: grid; gap: .5rem; }
-.order-list li { display: grid; grid-template-columns: 2rem 1fr 48px 48px; align-items: center; gap: .4rem; background: var(--night-2); border-radius: 12px; padding: .4rem .6rem; }
-.order-list .pos { color: var(--gold); font-weight: 800; }
+/* Drag-to-reorder (Sortable) */
+.sortable { list-style: none; padding: 0; margin: 0; display: grid; gap: .5rem; position: relative; user-select: none; -webkit-user-select: none; }
+.sort-row { display: grid; grid-template-columns: 1.4rem 1fr auto; align-items: center; gap: .45rem; background: var(--night-2); border: 2px solid var(--night-3); border-radius: 14px; padding: .35rem .5rem;
+  touch-action: none; cursor: grab; position: relative; transition: transform .22s cubic-bezier(.2,.8,.2,1), box-shadow .2s ease, background-color .2s ease, border-color .2s ease; }
+.sort-row.lifted { z-index: 5; cursor: grabbing; transition: box-shadow .2s ease, background-color .2s ease, border-color .2s ease; background: var(--night-3); border-color: var(--gold); box-shadow: 0 14px 30px rgba(0,0,0,.5), 0 0 0 2px var(--gold); }
+.sort-row.lifted.settling { transition: transform .19s cubic-bezier(.2,.8,.2,1), box-shadow .19s ease; box-shadow: none; }
+.sortable.no-anim .sort-row { transition: none !important; }
+.sort-row.just-moved { animation: sort-land .45s ease; }
+@keyframes sort-land { 0% { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 22%, var(--night-2)); } 100% { border-color: var(--night-3); } }
+.grip { display: grid; gap: 3px; justify-items: center; opacity: .55; } .grip i { display: block; width: 14px; height: 3px; border-radius: 2px; background: var(--cream); }
+.sort-row.lifted .grip { opacity: 1; } .sort-row.lifted .grip i { background: var(--gold); }
+.sort-body { display: flex; align-items: center; gap: .5rem; min-width: 0; }
+.sort-body .pos { color: var(--gold); font-weight: 800; min-width: 1.3rem; text-align: center; }
+.sort-body .label { line-height: 1.25; }
+.sort-arrows { display: flex; gap: .25rem; } .sort-arrows button { min-height: 36px; width: 36px; padding: 0; font-size: .8rem; background: transparent; border: 1px solid var(--night-3); color: var(--muted); }
+.drag-hint { margin: 0; text-align: center; }
+/* Bet matching: people fixed, menorahs slide */
+.match-board { --row: 62px; display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.25fr); gap: .45rem; }
+.match-people { list-style: none; padding: 0; margin: 0; display: grid; gap: .5rem; }
+.match-people .person { height: var(--row); display: flex; align-items: center; gap: .35rem; padding: 0 .3rem; border-radius: 14px; background: color-mix(in srgb, var(--gold) 8%, transparent); font-size: .95rem; line-height: 1.15; }
+.match-items .sort-row { height: var(--row); box-sizing: border-box; grid-template-columns: .8rem 1fr auto; padding: .2rem .35rem; gap: .3rem; }
+.match-items .grip i { width: 10px; }
+.match-items .sort-arrows { flex-direction: column; gap: 2px; } .match-items .sort-arrows button { min-height: 25px; width: 30px; }
+.menorah-card { display: flex; align-items: center; gap: .3rem; font-size: .88rem; line-height: 1.15; }
+.bet-art { flex: none; display: block; }
+.clue-peek { background: var(--night-2); border-radius: 12px; padding: .4rem .8rem; font-size: .9rem; }
+.clue-peek summary { cursor: pointer; color: var(--gold-soft); } .clue-peek ol { margin: .4rem 0 0; padding-inline-start: 1.2rem; display: grid; gap: .25rem; }
 .puzzle { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; width: min(92vw, 420px); aspect-ratio: 1; align-self: center; background: var(--night-3); padding: 4px; border-radius: 14px; }
 .tile { font-size: 2rem; font-weight: 800; border-radius: 8px; background: linear-gradient(160deg, var(--gold-soft), var(--gold)); color: var(--night); min-height: 0; padding: 0; }
 .tile.blank { background: transparent; } .tile.movable { box-shadow: 0 0 0 3px var(--cream) inset; }
 .track-btn { display: grid; gap: .2rem; text-align: right; background: var(--night-2); border: 2px solid var(--night-3); }
 .track-btn.on { border-color: var(--gold); } .track-btn b { font-size: 1.2rem; color: var(--gold); } .track-btn span { color: var(--muted); font-size: .9rem; }
 .confirm-box { background: color-mix(in srgb, var(--bad) 15%, var(--night-2)); border: 2px solid var(--bad); border-radius: 14px; padding: 1rem; display: grid; gap: .5rem; }
-.match-row { grid-template-columns: 1fr 1.3fr; align-items: center; }
 .memory-show { display: grid; place-items: center; min-height: 200px; }
 .memory-input { display: flex; gap: .3rem; justify-content: center; flex-wrap: wrap; }
 .memory-input .slot { width: 52px; height: 52px; border-radius: 10px; border: 2px dashed var(--night-3); display: grid; place-items: center; color: var(--muted); }
@@ -237,7 +291,8 @@ fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: .5rem; } legend
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
-  .confetti { display: none; }
+  .confetti i.burst { display: none; }
+  .confetti i.cf { animation-duration: calc(var(--d) * 3); }
 }
 
 /* Screen artwork scales with the screen container (projector or demo frame). */
@@ -507,3 +562,20 @@ button:not(:disabled):active { transform: scale(.96); }
 
 .pager-arrows.hide { display: none; }
 .pager .pic-stack + * { margin: 0; }
+/* Bet stakes: green gain, red loss */
+.stakes { display: grid; gap: .15rem; }
+.stake { font-size: .95rem; } .stake b { font-size: 1.15rem; }
+.stake.win, .stake.win b { color: var(--ok); }
+.stake.lose, .stake.lose b { color: var(--bad); }
+.stake-note { color: var(--warn); font-size: .8rem; }
+.track .stakes { font-size: 1.3em; margin-top: .4em; }
+.track .stake b { font-size: 1.35em; }
+.track-btn .stakes { margin-top: .2rem; }
+.track-btn.chosen .stake.win, .track-btn.chosen .stake.win b { color: #0f5a2a; }
+.track-btn.chosen .stake.lose, .track-btn.chosen .stake.lose b { color: #8a1c14; }
+.lose-text { color: var(--bad); }
+.stake.nolose, .stake.nolose b { color: var(--muted); }
+.track-btn.chosen .stake.nolose, .track-btn.chosen .stake.nolose b { color: #3a3f5c; }
+
+/* Bet track cards: natural height (the first card used to stretch) */
+.task.bet .track-btn { flex: none; align-content: start; height: auto; }

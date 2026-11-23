@@ -10,6 +10,9 @@ import { friendlyError } from '../lib/errors';
 import { SymbolTile } from '../components/Symbols';
 import { Scene } from '../components/Scene';
 import { SafeArt, type SafeState } from '../components/Safe';
+import { StakeLines, stake, fmt } from '../components/BetStakes';
+import { Sortable } from '../components/Sortable';
+import { Character, MenorahVariant, type CharacterId, type MenorahId } from '../components/BetArt';
 import type { SceneSpec } from '../content/scenes';
 import { isSolved, moveTile, neighbors, type Board } from '../../supabase/functions/_shared/engine/slidingPuzzle.ts';
 
@@ -278,30 +281,18 @@ function TextItems({ client, s, subs, canSubmit, onChange }: CP) {
   );
 }
 
-// ── 17: ordering, with accessible move buttons ──
+// ── 17: ordering — drag a row and the others slide out of its way (arrows kept as a fallback) ──
 function Ordering({ client, s, subs, canSubmit, onChange }: CP) {
   const items: { id: string; label: string }[] = s.round?.content?.items ?? [];
   const [order, setOrder] = useState(() => items.map((x) => x.id));
   const { busy, msg, send } = useSubmitter(client, onChange);
   const byId = useMemo(() => new Map(items.map((x) => [x.id, x])), [items]);
   if (submittedItems(subs).has(0)) return <p className="center-msg">הסדר נשלח ✓</p>;
-  const move = (i: number, d: number) => {
-    const j = i + d;
-    if (j < 0 || j >= order.length) return;
-    const n = order.slice(); [n[i], n[j]] = [n[j], n[i]]; setOrder(n);
-  };
   return (
     <div className="task ordering">
-      <ol className="order-list">
-        {order.map((id, i) => (
-          <li key={id}>
-            <span className="pos">{i + 1}</span>
-            <span className="label">{byId.get(id)?.label}</span>
-            <button aria-label="הזזה למעלה" disabled={i === 0} onClick={() => move(i, -1)}>▲</button>
-            <button aria-label="הזזה למטה" disabled={i === order.length - 1} onClick={() => move(i, 1)}>▼</button>
-          </li>
-        ))}
-      </ol>
+      <p className="muted small drag-hint">גוררים כל שורה למקום שלה: הכי מוקדם למעלה.</p>
+      <Sortable ids={order} onChange={setOrder} label="סידור לפי הסדר" disabled={!canSubmit}
+                render={(id, i) => <><span className="pos">{i + 1}</span><span className="label">{byId.get(id)?.label}</span></>} />
       <button className="primary" disabled={!canSubmit || busy !== null} onClick={() => send(0, { order })}>שליחת הסדר</button>
       <Feedback m={msg} item={0} />
     </div>
@@ -359,31 +350,48 @@ function Sliding({ client, s, subs, canSubmit, onChange }: CP) {
 // ── 31: bet (before the puzzle) + matching (after) ──
 function BetPicker({ client, s, team, canSubmit, onChange }: CP) {
   const tracks = s.round?.bet_tracks ?? [];
+  const base = s.round?.bet_base ?? 0;
+  const myTotal = team.score?.total ?? null;
   const [pick, setPick] = useState<string | null>(team.bet?.track_id ?? null);
   const [confirm, setConfirm] = useState(false);
   const [err, setErr] = useState('');
   const locked = s.round?.phase === 'bets_locked';
+  const chosen = tracks.find((t) => t.id === team.bet?.track_id);
   const place = async (id: string) => {
     const t = tracks.find((x) => x.id === id)!;
-    if (t.lossMultiplier >= 1 && !confirm) { setPick(id); setConfirm(true); return; }
+    const hasPoints = myTotal == null || myTotal > 0;
+    const risky = t.lossMultiplier > 0 && hasPoints && (t.lossMultiplier >= 1 || (myTotal != null && stake(base, t.lossMultiplier) >= myTotal));
+    if (risky && !confirm) { setPick(id); setConfirm(true); return; }
     setConfirm(false); setErr('');
     const { error } = await client.rpc('team_place_bet', { p_track: id });
     if (error) setErr(friendlyError(error)); else { setPick(id); onChange(); }
   };
-  if (locked) return <p className="center-msg">ההימור ננעל: <b>{tracks.find((t) => t.id === team.bet?.track_id)?.label ?? 'לא נבחר'}</b></p>;
+  if (locked) {
+    return (
+      <div className="center-msg">
+        <p>ההימור ננעל:</p>
+        <h3 style={{ color: 'var(--gold)' }}>{chosen?.label ?? 'זהיר'}</h3>
+        {chosen && <StakeLines t={chosen} base={base} myTotal={myTotal} />}
+        <p className="muted">החידה נחשפת בעוד רגע…</p>
+      </div>
+    );
+  }
+  const pending = tracks.find((t) => t.id === pick);
   return (
     <div className="task bet">
       <p>בחרו מסלול לפני שהחידה נחשפת:</p>
+      {myTotal === 0 && <p className="muted small">יש לכם כרגע 0 נקודות, אז אין לכם מה להפסיד. כדאי להעז!</p>}
       {tracks.map((t) => (
         <button key={t.id} className={`track-btn ${team.bet?.track_id === t.id ? 'chosen' : ''}`} disabled={!canSubmit} onClick={() => { tap(); place(t.id); }}>
-          <b>{t.label}</b><span>הצלחה +{t.winMultiplier}× · כישלון −{t.lossMultiplier}×</span>
+          <b>{t.label}</b>
+          <StakeLines t={t} base={base} myTotal={myTotal} />
         </button>
       ))}
-      {team.bet && <p className="ok">בחרתם: {tracks.find((t) => t.id === team.bet!.track_id)?.label} (בסיס {team.bet.base_points}). אפשר לשנות עד הנעילה.</p>}
-      {confirm && pick && (
-        <div className="confirm-box" role="alertdialog">
-          <p><b>זהירות:</b> במסלול הזה כישלון עלול לאפס את כל הניקוד שלכם.</p>
-          <button className="danger" onClick={() => place(pick)}>כן, אנחנו מהמרים</button>
+      {chosen && <p className="ok">בחרתם: {chosen.label}. אפשר לשנות עד שהמנחה נועל.</p>}
+      {confirm && pending && (
+        <div className="confirm-box enter" role="alertdialog">
+          <p><b>בטוחים?</b> אם החידה לא תיפתר, תפסידו <b className="lose-text" dir="ltr">{fmt(Math.min(stake(base, pending.lossMultiplier), myTotal ?? Infinity))}</b> נקודות{myTotal != null && stake(base, pending.lossMultiplier) >= myTotal ? ', כלומר את כל הניקוד שלכם' : ''}.</p>
+          <button className="danger" onClick={() => place(pending.id)}>כן, מהמרים על {pending.label}</button>
           <button className="ghost" onClick={() => setConfirm(false)}>ביטול</button>
         </div>
       )}
@@ -392,26 +400,45 @@ function BetPicker({ client, s, team, canSubmit, onChange }: CP) {
   );
 }
 
+/** People stay put; the menorahs are dragged up and down until each one sits opposite its owner. */
 function Matching({ client, s, subs, canSubmit, onChange }: CP) {
   const c = s.round?.content ?? {};
   const people: string[] = c.people ?? [];
   const items: string[] = c.items ?? [];
-  const [a, setA] = useState<number[]>(() => people.map(() => -1));
+  const peopleArt: CharacterId[] = c.people_art ?? [];
+  const itemsArt: MenorahId[] = c.items_art ?? [];
+  const clues: string[] = c.clues ?? [];
+  const [order, setOrder] = useState<string[]>(() => items.map((_, j) => String(j)));
   const { busy, msg, send } = useSubmitter(client, onChange);
   if (submittedItems(subs).has(0)) return <p className="center-msg">התשובה נשלחה ✓</p>;
-  const valid = a.every((x) => x >= 0) && new Set(a).size === a.length;
+  const assignment = order.map(Number);
   return (
     <div className="task matching">
-      {people.map((p, i) => (
-        <label key={i} className="match-row">{p}
-          <select value={a[i]} onChange={(e) => setA(a.map((x, j) => (j === i ? Number(e.target.value) : x)))}>
-            <option value={-1}>בחרו…</option>
-            {items.map((it, j) => <option key={j} value={j}>{it}</option>)}
-          </select>
-        </label>
-      ))}
-      {!valid && a.every((x) => x >= 0) && <p className="warn">כל פריט יכול להופיע פעם אחת בלבד.</p>}
-      <button className="primary" disabled={!canSubmit || !valid || busy !== null} onClick={() => send(0, { assignment: a })}>שליחה</button>
+      <p className="muted small drag-hint">גוררים כל חנוכייה מול מי שבחר בה.</p>
+      <div className="match-board">
+        <ol className="match-people" aria-label="המשתתפים">
+          {people.map((p, i) => (
+            <li key={i} className="person">
+              {peopleArt[i] && <Character id={peopleArt[i]} size={44} />}
+              <span>{p}</span>
+            </li>
+          ))}
+        </ol>
+        <Sortable ids={order} onChange={setOrder} className="match-items" disabled={!canSubmit} label="החנוכיות"
+                  render={(id) => (
+                    <span className="menorah-card">
+                      {itemsArt[Number(id)] && <MenorahVariant id={itemsArt[Number(id)]} size={44} />}
+                      <span>{items[Number(id)]}</span>
+                    </span>
+                  )} />
+      </div>
+      {clues.length > 0 && (
+        <details className="clue-peek">
+          <summary>הרמזים (מופיעים גם על המסך)</summary>
+          <ol>{clues.map((cl, i) => <li key={i}>{cl}</li>)}</ol>
+        </details>
+      )}
+      <button className="primary" disabled={!canSubmit || busy !== null} onClick={() => send(0, { assignment })}>שליחה</button>
       <Feedback m={msg} item={0} />
     </div>
   );
