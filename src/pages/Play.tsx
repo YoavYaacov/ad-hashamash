@@ -16,7 +16,7 @@ export default function Play() {
   const client = useClient('play');
   const [ready, setReady] = useState(false);
   const [authErr, setAuthErr] = useState('');
-  const { state, version, conn } = usePublicState(client);
+  const { state, version, conn, refetch } = usePublicState(client);
   const offset = useServerClock(client);
   const [team, setTeam] = useState<TeamState | null>(null);
   const [drawn, setDrawn] = useState<string | null>(null);
@@ -52,7 +52,7 @@ export default function Play() {
     <Shell conn={conn} teamName={team.team?.name} color={team.team?.color} demo={state?.instance.mode === 'demo'}>
       {!state ? <p className="muted">אין משחק פעיל כרגע.</p>
         : drawn && team.registered ? <NameReveal name={drawn} color={team.team?.color ?? 'var(--gold)'} onDone={() => setDrawn(null)} />
-        : !team.registered ? <Register s={state} onDone={(n) => { setDrawn(n); loadTeam(); }} />
+        : !team.registered ? <Register s={state} onDone={(n) => { setDrawn(n); loadTeam(); refetch(); }} />
         : <InGame s={state} team={team} offset={offset} onChange={loadTeam} />}
     </Shell>
   );

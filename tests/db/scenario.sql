@@ -232,3 +232,6 @@ select t.ok(not has_function_privilege('authenticated', 'public.team_join(text, 
         and not has_function_privilege('authenticated', 'public.team_register(text, text, text[])', 'execute')
         and not has_function_privilege('authenticated', 'public.host_set_captain(uuid, uuid)', 'execute'), 'retired second-phone functions are not callable');
 \o
+\o /dev/null
+select t.ok((select bool_and(state ? 'instance' and state -> 'instance' ? 'id') from public.public_state), 'public_state never holds an empty row');
+\o

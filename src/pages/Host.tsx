@@ -55,7 +55,7 @@ interface Sub { id: number; team_id: string; item_index: number; attempt_no: num
 
 function Console() {
   const client = useClient('host');
-  const { state, version, conn } = usePublicState(client);
+  const { state, version, conn, refetch } = usePublicState(client);
   const offset = useServerClock(client);
   const [templates, setTemplates] = useState<{ id: string; name: string; is_placeholder: boolean }[]>([]);
   const [teams, setTeams] = useState<{ id: string; name: string; color: string; members: string[]; status: string }[]>([]);
@@ -101,6 +101,7 @@ function Console() {
       try { const b = await error.context?.json?.(); if (b?.error) msg = b.error; } catch { /* ignore */ }
       setToast({ text: friendlyError(msg), bad: true });
     } else if (ok) setToast({ text: ok });
+    refetch();   // don't wait for Realtime: show the new state right away
     load();
     return data;
   };

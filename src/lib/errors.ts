@@ -1,6 +1,9 @@
 /** Server error codes → short, friendly Hebrew. Unknown codes fall back to a generic message. */
 const MESSAGES: Record<string, string> = {
   not_signed_in: 'החיבור נותק. מנסים שוב…',
+  anonymous_provider_disabled: 'ההצטרפות כבויה בשרת. המנחה צריך להפעיל ב־Supabase את Anonymous sign-ins.',
+  'Anonymous sign-ins are disabled': 'ההצטרפות כבויה בשרת. המנחה צריך להפעיל ב־Supabase את Anonymous sign-ins.',
+  'Invalid login credentials': 'האימייל או הסיסמה שגויים.',
   no_active_game: 'אין כרגע משחק פתוח. חכו שהמנחה יפתח את ההרשמה.',
   members_required: 'כתבו לפחות שם של משתתף אחד.',
   bad_transfer_code: 'הקוד לא נכון או שפג תוקפו. בקשו קוד חדש מהמנחה.',

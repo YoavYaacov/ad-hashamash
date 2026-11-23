@@ -51,26 +51,34 @@ export function usePublicState(client: SupabaseClient) {
   const [version, setVersion] = useState(0);
   const [conn, setConn] = useState<ConnState>('connecting');
   const verRef = useRef(0);
+  const idRef = useRef<string | null>(null);
 
+  // Stable (no deps on state) so the Realtime channel is created ONCE and never torn down mid-game.
   const accept = useCallback((row: { state: PublicState; version: number } | null) => {
-    if (!row || (row.state?.instance?.status === 'archived')) return;
-    if (row.version < verRef.current && row.state.instance.id === state?.instance.id) return;
+    const inst = row?.state?.instance;
+    if (!row || !inst?.id) return;                       // ignore incomplete rows
+    if (inst.status === 'archived') {                     // the current game was archived
+      if (inst.id === idRef.current) { idRef.current = null; verRef.current = 0; setState(null); }
+      return;
+    }
+    if (inst.id === idRef.current && row.version <= verRef.current) return;   // stale/out-of-order
+    idRef.current = inst.id;
     verRef.current = row.version;
-    setVersion(row.version);
+    setVersion((v) => v + 1);
     setState(row.state);
-  }, [state?.instance.id]);
+  }, []);
 
   const refetch = useCallback(async () => {
     const { data, error } = await client.from('public_state').select('state, version, updated_at')
       .neq('state->instance->>status', 'archived').order('updated_at', { ascending: false }).limit(1);
     if (error) { setConn('reconnecting'); return; }
     if (data && data[0]) accept(data[0] as any);
-    else { setState(null); verRef.current = 0; }
+    else if (idRef.current) { idRef.current = null; verRef.current = 0; setState(null); setVersion((v) => v + 1); }
   }, [client, accept]);
 
   useEffect(() => {
     refetch();
-    const ch = client.channel('public_state')
+    const ch = client.channel(`public_state:${Math.random().toString(36).slice(2)}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'public_state' }, (p) => {
         if (p.eventType === 'DELETE') { refetch(); return; }
         accept(p.new as any);
