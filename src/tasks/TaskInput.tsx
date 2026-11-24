@@ -1,6 +1,7 @@
 /**
  * Phone-side task UIs. These only COLLECT answers — correctness and points are decided on the server.
  */
+import { LetterMenorah } from '../components/LetterMenorah';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { uuid } from '../lib/uuid';
@@ -522,8 +523,50 @@ function SequenceMemory({ client, s, subs, canSubmit, onChange, offset = 0 }: CP
   );
 }
 
-// ── 9th round: answer type depends on the (not yet chosen) finale puzzle ──
+// ── 9th round: השַׁמָּשׁ. Letters: one letter in each branch of the menorah ──
 function Finale(p: CP) {
+  const type = p.s.round?.content?.answer_type ?? 'code';
+  if (type === 'letters') return <FinaleLetters {...p} />;
+  return <FinaleText {...p} />;
+}
+
+function FinaleLetters({ client, subs, canSubmit, onChange }: CP) {
+  const [letters, setLetters] = useState<string[]>(() => Array(8).fill(''));
+  const [shake, setShake] = useState(false);
+  const [won, setWon] = useState(false);
+  const { busy, msg, send } = useSubmitter(client, onChange);
+  const solved = won || solvedItems(subs).has(0);
+  const full = letters.every((c) => c);
+  const submit = async () => {
+    if (!full || busy !== null) return;
+    tap();
+    const res = await send(0, { letters: letters.join('') });
+    if (res?.correct === true) { setWon(true); vibrateLong(); }
+    else if (res?.correct === false) {
+      setShake(true);
+      try { navigator.vibrate?.([90, 60, 140]); } catch { /* unsupported */ }
+      setTimeout(() => setShake(false), 700);
+    }
+  };
+  if (solved) {
+    return (
+      <div className="task finale finale-letters done">
+        <LetterMenorah letters={letters.some((c) => c) ? letters : Array(8).fill('')} lit />
+        <p className="ok finale-win">החנוכייה דולקת!</p>
+      </div>
+    );
+  }
+  return (
+    <div className="task finale finale-letters">
+      <LetterMenorah letters={letters} onChange={setLetters} disabled={!canSubmit} onEnter={submit}
+                     className={shake ? 'lm-fail' : ''} />
+      <button className="primary" disabled={!canSubmit || !full || busy !== null} onClick={submit}>{busy !== null ? '…' : 'הדלקה'}</button>
+      <Feedback m={msg} item={0} />
+    </div>
+  );
+}
+
+function FinaleText(p: CP) {
   const type = p.s.round?.content?.answer_type ?? 'code';
   const [v, setV] = useState('');
   const { busy, msg, send } = useSubmitter(p.client, p.onChange);

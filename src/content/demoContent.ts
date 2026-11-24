@@ -8,6 +8,9 @@
 import { buildPictures, heatAnswer, heatMarks, HEATS, PUZZLE_SCENE } from './scenes';
 import { memoryTotalMs } from '../../supabase/functions/_shared/engine/memory.ts';
 
+export const FINALE_PUZZLE = 'שמונה נרות. שמונה אותיות. מילה אחת.';
+export const FINALE_INSTRUCTIONS = 'לאורך כל הערב, בכל נר, הסתתרה אות אחת.\nמי ששם לב, כבר יודע.\nסדרו את שמונה האותיות למילה אחת ושבצו אותן בקני החנוכייה.\nשתי הקבוצות הראשונות שפותרות זוכות!';
+
 const LETTERS = ['א', 'ב', 'ג'];
 
 export interface TaskDef {
@@ -162,12 +165,11 @@ export const TASKS: TaskDef[] = [
   },
   {
     id: 'demo-finale', idea_no: null, kind: 'finale', title: 'הַשַּׁמָּשׁ',
-    instructions: 'חידת הגמר (לדוגמה). רק שתי הקבוצות הראשונות שפותרות מקבלות נקודות.',
-    public_content: { answer_type: 'code', puzzle:
-      'קחו את מספר הלילה שבו דולקים לראשונה יותר נרות (בלי השמש) ממספר בני מתתיהו. '
-      + 'כפלו אותו במספר האותיות שעל הסביבון, והוסיפו את התאריך בכסלו שבו מדליקים את הנר הראשון. מה יצא?' },
+    instructions: FINALE_INSTRUCTIONS,
+    public_content: { answer_type: 'letters', length: 8, puzzle: FINALE_PUZZLE },
     duration_sec: 300, scoring: { method: 'finals' }, attempts_limit: 5, settings: { instant_feedback: true },
-    answer_key: { kind: 'finale', code: '49' },
+    // Demo word only. The real finale word lives in the database, never in this repo.
+    answer_key: { kind: 'finale', letters: 'סופגניות' },
   },
   // In the pool but not in the lineup (kept as placeholders):
   {

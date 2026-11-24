@@ -10,6 +10,6 @@ export const ASK: Record<string, string> = {
   bet_puzzle: 'מי בחר איזו חנוכייה?',
   symbols: 'מה אומרים הסמלים?',
   video_memory: 'מה ראיתם?',
-  finale: 'פותרים ומקלידים את הפתרון',
+  finale: 'איזו מילה כתבו לכם הנרות?',
 };
 export const askFor = (kind: string, content?: { ask?: string } | null) => content?.ask ?? ASK[kind] ?? '';

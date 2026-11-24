@@ -2,6 +2,8 @@
  * /screen — the projector. Read-only, anonymous, shows ONLY the screen-safe snapshot.
  * No host controls, no secrets: everything here comes from public_state.
  */
+import { ClueLetter } from '../components/ClueLetter';
+import { LetterMenorah } from '../components/LetterMenorah';
 import { useEffect, useMemo, useState } from 'react';
 import QRCode from 'qrcode';
 import { useClient } from '../lib/clientContext';
@@ -127,7 +129,13 @@ function Lobby({ s }: { s: PublicState | null }) {
                   <li><span>3</span>מקבלים שם קבוצה מצחיק, ומחכים להתחלה</li>
                 </ol>
               </>
-            ) : <div className="locked-msg">ההרשמה נסגרה. עוד רגע מתחילים!</div>}
+            ) : (
+              <div className="locked-msg">
+                <p className="lk-l1">שמונה נרות. שמונה מבחנים.</p>
+                <p className="lk-l2">{['עירנות', 'חדות', 'זריזות', 'ידע'].map((w, i) => <span key={w} style={{ '--i': i } as React.CSSProperties}>{w}</span>)}</p>
+                <p className="lk-l3">רק הטובים ביותר יגיעו אל השַּׁמָּשׁ</p>
+              </div>
+            )}
           </div>
         </Swap>
         <TeamCloud teams={s?.teams ?? []} />
@@ -301,7 +309,9 @@ function ScreenContent({ s }: { s: PublicState }) {
         </div>
       );
     case 'finale':
-      return <div className="finale-puzzle">{c.puzzle}</div>;
+      return c.answer_type === 'letters'
+        ? <div className="finale-board"><LetterMenorah letters={Array(8).fill('')} /><p className="finale-puzzle">{c.puzzle}</p></div>
+        : <div className="finale-puzzle">{c.puzzle}</div>;
     default:
       // sprint, sliding puzzle, sequence memory, video questions: played on the phones.
       return <div className="on-phones"><PhoneGlyph /><span>בטלפון</span></div>;
@@ -341,7 +351,8 @@ function Solution({ s }: { s: PublicState }) {
     case 'code_vault':
       body = <div className="vault-screen" style={{ gridTemplateColumns: 'auto auto', justifyContent: 'center' }}><div className="sol-code" dir="ltr">{sol.code}</div><OpeningSafe digits={sol.code} size={260} delay={600} /></div>; break;
     case 'finale':
-      body = sol.code ? <div className="sol-code" dir="ltr">{sol.code}</div> : <div className="sol-code">{sol.text?.canonical ?? sol.choice}</div>; break;
+      body = sol.letters ? <div className="finale-board"><LetterMenorah letters={[...String(sol.letters)]} lit className="reveal" /></div>
+        : sol.code ? <div className="sol-code" dir="ltr">{sol.code}</div> : <div className="sol-code">{sol.text?.canonical ?? sol.choice}</div>; break;
     case 'sprint': case 'video_memory':
       body = <ol className="sol-list">{sol.items.map((it: any, i: number) => (
         <li key={i}><span className="q">{(c.questions ?? [])[i]?.text}</span><b>{'choice' in it ? it.choice : it.text.canonical}</b></li>))}</ol>; break;
@@ -426,6 +437,7 @@ function Standings({ s }: { s: PublicState }) {
   const n = ranked.length;
   return (
     <div className="standings top5">
+      <ClueLetter clue={s.round?.clue} where="screen" />
       <h2 className="top5-title">חמש המובילות</h2>
       <div className="top5-list">
         {ranked.map((r, i) => (

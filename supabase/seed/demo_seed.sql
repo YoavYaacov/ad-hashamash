@@ -22,7 +22,10 @@ insert into public.task_templates (id, idea_no, kind, title, instructions, publi
 נועז: רווח גדול יותר, ואפשר גם להפסיד.
 הכול או כלום: הרווח הכי גדול, וגם ההפסד.
 פותרים נכון? מרוויחים. טועים? מפסידים לפי המסלול.', '{"people":["סבתא מלכה","דוֹד אבי","נועה","איתי"],"items":["חנוכיית כסף","חנוכיית זכוכית לשמן","חנוכיית לגו","חנוכיית חימר"],"people_art":["grandma","uncle","girl","boy"],"items_art":["silver","glass","lego","clay"],"clues":["דוֹד אבי בחר בחנוכייה שאינה עשויה ממתכת, וגם לא מזכוכית.","נועה ואיתי לא בחרו בחנוכיית הכסף.","חנוכיית הלגו לא שייכת לדוֹד אבי.","נועה לא מדליקה בשמן, ולכן לא בחרה בחנוכיית הזכוכית."]}', 240, '{"method":"bet"}', 1, 'captain_only', '{"bet":{"baseMethod":"average_floor100","minBase":100,"defaultTrack":"safe","tracks":[{"id":"safe","label":"זהיר","winMultiplier":0.5,"lossMultiplier":0},{"id":"mid","label":"נועז","winMultiplier":1,"lossMultiplier":0.5},{"id":"all","label":"הכול או כלום","winMultiplier":2,"lossMultiplier":1}]}}', 'candidate', true),
-('demo-finale', null, 'finale', 'הַשַּׁמָּשׁ', 'חידת הגמר (לדוגמה). רק שתי הקבוצות הראשונות שפותרות מקבלות נקודות.', '{"answer_type":"code","puzzle":"קחו את מספר הלילה שבו דולקים לראשונה יותר נרות (בלי השמש) ממספר בני מתתיהו. כפלו אותו במספר האותיות שעל הסביבון, והוסיפו את התאריך בכסלו שבו מדליקים את הנר הראשון. מה יצא?"}', 300, '{"method":"finals"}', 5, 'captain_only', '{"instant_feedback":true}', 'candidate', true),
+('demo-finale', null, 'finale', 'הַשַּׁמָּשׁ', 'לאורך כל הערב, בכל נר, הסתתרה אות אחת.
+מי ששם לב, כבר יודע.
+סדרו את שמונה האותיות למילה אחת ושבצו אותן בקני החנוכייה.
+שתי הקבוצות הראשונות שפותרות זוכות!', '{"answer_type":"letters","length":8,"puzzle":"שמונה נרות. שמונה אותיות. מילה אחת."}', 300, '{"method":"finals"}', 5, 'captain_only', '{"instant_feedback":true}', 'candidate', true),
 ('demo-video', 5, 'video_memory', '[דמה] מה ראיתם עכשיו?', 'צפו בסרטון וענו על השאלות.', '{"video":null,"questions":[{"text":"[שאלת דמה]","options":["א","ב","ג","ד"]}]}', 90, '{"method":"per_item","points":100}', 1, 'captain_only', '{}', 'backup', true),
 ('demo-symbols', 11, 'symbols', 'חנוכה בסמלים', 'חמש חידות, בכל סדר. הקלידו את התשובה.', '{"puzzles":[{"symbols":["oil","jar"]},{"symbols":["miracle","temple"]}]}', 180, '{"method":"per_item","points":60}', 3, 'captain_only', '{"instant_feedback":true}', 'backup', true)
 on conflict (id) do update set idea_no = excluded.idea_no, kind = excluded.kind, title = excluded.title, instructions = excluded.instructions,
@@ -38,7 +41,7 @@ insert into private.task_secrets (task_id, answer_key, verified_note) values
 ('demo-order', '{"kind":"ordering","correct":["a","b","c","d","e","f"]}', 'trial content'),
 ('demo-slide', '{"kind":"sliding_puzzle","start":[7,3,6,2,0,8,1,4,5]}', 'trial content'),
 ('demo-bet', '{"kind":"bet_puzzle","assignment":[0,3,2,1]}', 'trial content'),
-('demo-finale', '{"kind":"finale","code":"49"}', 'trial content'),
+('demo-finale', '{"kind":"finale","letters":"סופגניות"}', 'trial content'),
 ('demo-video', '{"kind":"video_memory","items":[{"choice":"ב"}]}', 'trial content'),
 ('demo-symbols', '{"kind":"symbols","items":[{"text":{"canonical":"פך השמן","alternatives":["פך שמן","כד השמן"]}},{"text":{"canonical":"נס במקדש"}}]}', 'trial content')
 on conflict (task_id) do update set answer_key = excluded.answer_key, verified_note = excluded.verified_note;

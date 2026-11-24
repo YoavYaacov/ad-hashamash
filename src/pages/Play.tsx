@@ -2,12 +2,13 @@
  * /play — team phone. Mobile first, big targets, short Hebrew copy.
  * Identity = anonymous Supabase session (survives refresh). All state comes from the server.
  */
+import { ClueLetter } from '../components/ClueLetter';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useClient } from '../lib/clientContext';
 import { usePublicState, useServerClock } from '../lib/hooks';
 import { friendlyError } from '../lib/errors';
-import type { PublicState, TeamState } from '../lib/types';
+import type { PublicRound, PublicState, TeamState } from '../lib/types';
 import { Timer } from '../components/Timer';
 import { APP_NAME } from '../config';
 import { askFor } from '../content/asks';
@@ -245,9 +246,10 @@ function PhonePodium({ s, myId, myRank }: { s: PublicState; myId: string; myRank
   );
 }
 
-function ScoreCard({ score }: { score: NonNullable<TeamState['score']> }) {
+function ScoreCard({ score, clue }: { score: NonNullable<TeamState['score']>; clue?: PublicRound['clue'] }) {
   return (
     <div className="score-card enter" role="status">
+      <ClueLetter clue={clue} where="phone" />
       <div className="line"><span>הניקוד שלכם</span><b>{score.total.toLocaleString('he-IL')}</b></div>
       <div className="line"><span>המקום שלכם</span><b>{score.rank}<small className="muted" style={{ fontSize: '1rem' }}> מתוך {score.teams}</small></b></div>
       <Motivation score={score} />
@@ -295,7 +297,7 @@ function InGame({ s, team, offset, onChange }: { s: PublicState; team: TeamState
         : live ? <TaskInput client={client} s={s} team={team} onChange={onChange} offset={offset} />
         : r.phase === 'closed' || r.phase === 'graded' ? <div className="center-msg"><h3>הזמן נגמר</h3><div className="waiting-dots" aria-hidden="true"><i /><i /><i /></div></div>
         : <div className="center-msg look-up"><h3>הפתרון על המסך</h3></div>}
-      {showScore && <ScoreCard score={score!} />}
+      {showScore && <ScoreCard score={score!} clue={r.clue} />}
     </div>
   );
 }

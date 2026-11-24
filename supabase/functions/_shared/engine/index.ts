@@ -5,3 +5,4 @@ export * from './scoring.ts';
 export * from './logicPuzzle.ts';
 export * from './tasks.ts';
 export * from './memory.ts';
+export * from './clues.ts';

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { TASKS, LINEUP } from '../src/content/demoContent';
 import { HEATS, buildPictures, heatAnswer, type SceneSpec } from '../src/content/scenes';
-import { solveMatching, redundantClues, gradeItem, isSolvable, type AnswerKey } from '../supabase/functions/_shared/engine/index.ts';
+import { solveMatching, redundantClues, gradeItem, isSolvable, type AnswerKey, makeClues } from '../supabase/functions/_shared/engine/index.ts';
 
 const task = (id: string) => TASKS.find((t) => t.id === id)! as any;
 
@@ -62,9 +62,25 @@ describe('trial content is self-consistent', () => {
     expect(t.scoring.points_by_stage.reduce((a: number, b: number) => a + b, 0)).toBe(300);
   });
 
-  it('finale arithmetic: 6 × 4 + 25 = 49', () => {
-    const firstNightOver5 = [1, 2, 3, 4, 5, 6, 7, 8].find((n) => n > 5)!;
-    expect(String(firstNightOver5 * 4 + 25)).toBe(task('demo-finale').answer_key.code);
+  it('finale: 8 letters, one per candle; final forms and spaces are forgiven', () => {
+    const k = task('demo-finale').answer_key as any;
+    expect([...k.letters]).toHaveLength(8);
+    expect(task('demo-finale').public_content.length).toBe(8);
+    expect(gradeItem(k, 0, { letters: 'סופגניות' }).correct).toBe(true);
+    expect(gradeItem(k, 0, { letters: 'סופגניות'.split('').join(' ') }).correct).toBe(true);
+    expect(gradeItem(k, 0, { letters: 'סופגניתו' }).correct).toBe(false);
+  });
+
+  it('letter journey: scrambled, all letters dealt once, base forms only', () => {
+    let seed = 7; const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    for (let n = 0; n < 200; n++) {
+      const c = makeClues('סביבונים', rand);
+      expect(c).toHaveLength(8);
+      expect(c.map((x) => x.letter).sort().join('')).toBe([...'סביבונימ'].sort().join(''));
+      expect(c.map((x) => x.letter).join('')).not.toBe('סביבונימ');
+      expect(new Set(c.map((x) => x.spot)).size).toBe(8);
+      c.forEach((x) => expect(Math.abs(x.rot)).toBeLessThanOrEqual(26));
+    }
   });
 
   it('truth or fiction: one answer per set, index within 1..4', () => {
@@ -127,7 +143,8 @@ describe('trial content is self-consistent', () => {
       if (k.kind === 'sprint' || k.kind === 'truth_or_fiction' || k.kind === 'three_pictures') {
         k.items.forEach((it: any, i: number) => expect(gradeItem(k, i, 'choice' in it ? { choice: it.choice } : { text: it.text.canonical }).correct).toBe(true));
       }
-      if (k.kind === 'code_vault' || k.kind === 'finale') expect(gradeItem(k, 0, { code: (k as any).code }).correct).toBe(true);
+      if (k.kind === 'finale') expect(gradeItem(k, 0, { letters: (k as any).letters }).correct).toBe(true);
+      if (k.kind === 'code_vault') expect(gradeItem(k, 0, { code: (k as any).code }).correct).toBe(true);
       if (k.kind === 'ordering') expect(gradeItem(k, 0, { order: k.correct }).correct).toBe(true);
       if (k.kind === 'bet_puzzle') expect(gradeItem(k, 0, { assignment: k.assignment }).correct).toBe(true);
       if (k.kind === 'sequence_memory') k.stages.forEach((s, i) => expect(gradeItem(k, i, { sequence: s }).correct).toBe(true));

@@ -927,3 +927,39 @@ html, body { overflow-x: clip; }
 @keyframes fw-burst-big { 0% { opacity: 0; transform: rotate(var(--a)) translateY(0); } 5% { opacity: 1; } 40% { opacity: 1; transform: rotate(var(--a)) translateY(-7cqw); }
   65% { opacity: 0; transform: rotate(var(--a)) translateY(-8.5cqw) translateX(.6cqw) scale(.6); } 100% { opacity: 0; } }
 .pp-me { top: .7rem; }
+
+/* ── מסע האותיות: a letter that is simply there ── */
+.standings.top5 { position: relative; }
+.score-card { position: relative; }
+.clue-letter { position: absolute; z-index: 1; pointer-events: none; line-height: 1; font-family: var(--font);
+  color: var(--gold-soft); opacity: .5; transform: translate(-50%, -50%) rotate(var(--rot, 0deg)); }
+.clue-letter.cl-screen { font-size: 2.8cqw; }
+.clue-letter.cl-phone { font-size: 1.05rem; transform: rotate(var(--rot, 0deg)); opacity: .55; }
+
+/* ── Before round 1: the promise ── */
+.locked-msg { text-align: center; display: grid; gap: 2.2cqh; align-content: center; height: 100%; }
+.locked-msg p { margin: 0; }
+.locked-msg .lk-l1 { font-size: 2.3cqw; color: var(--gold-soft); white-space: nowrap; animation: enter-fade .8s ease both; }
+.locked-msg .lk-l2 { display: grid; grid-template-columns: auto auto; justify-content: center; gap: 1.2cqh 2.6cqw; font-size: 3.6cqw; color: var(--gold);
+  text-shadow: 0 0 2.4cqw rgba(233,185,73,.35); }
+.locked-msg .lk-l2 span { animation: pop-name .8s cubic-bezier(.2,1.3,.4,1) both; animation-delay: calc(.9s + var(--i) * .45s); }
+.locked-msg .lk-l3 { font-size: 1.75cqw; color: var(--text, #f4ead2); opacity: .9; animation: enter-fade 1s ease 3s both; }
+
+/* ── The finale menorah: one letter per branch, the shamash always lit ── */
+.letter-menorah { position: relative; width: 100%; aspect-ratio: 520 / 330; }
+.letter-menorah svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.lm-cell { position: absolute; box-sizing: border-box; margin: 0; padding: 0; display: grid; place-items: center; text-align: center;
+  font-family: var(--font); font-size: min(7.6cqw, 2rem); line-height: 1; color: #3a2f22; caret-color: #b8862f;
+  background: linear-gradient(90deg, #f3ede0, #d9cfbc); border: 2px solid rgba(184,134,47,.55); border-radius: 22% 22% 10% 10% / 14% 14% 6% 6%;
+  box-shadow: inset 0 -6px 10px rgba(0,0,0,.08); outline: none; transition: box-shadow .25s, transform .25s; }
+input.lm-cell:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(233,185,73,.45), inset 0 -6px 10px rgba(0,0,0,.08); }
+input.lm-cell:disabled { opacity: .7; }
+.letter-menorah.lit .lm-cell { box-shadow: 0 -10px 18px rgba(255,196,87,.45), inset 0 -6px 10px rgba(0,0,0,.08); }
+.letter-menorah.lm-fail { animation: safe-shake2 .7s cubic-bezier(.36,.07,.19,.97) both; }
+.letter-menorah.reveal .lm-cell.full { animation: mem-pop .6s cubic-bezier(.2,1.3,.4,1) both; animation-delay: calc(var(--i) * 260ms + 200ms); }
+.finale-letters { display: grid; gap: .9rem; justify-items: stretch; container-type: inline-size; }
+.finale-letters .letter-menorah { max-width: 30rem; justify-self: center; }
+.finale-win { text-align: center; font-size: 1.5rem; margin: 0; animation: pop-name .8s cubic-bezier(.2,1.3,.4,1) 2.4s both; }
+.finale-board { display: grid; justify-items: center; gap: 1.5cqh; container-type: inline-size; width: min(50cqw, 900px); margin-inline: auto; }
+.screen .finale-board .lm-cell { font-size: 6.2cqw; }
+.finale-board .finale-puzzle { margin: 0; font-size: 1.6em; white-space: nowrap; max-width: none; }

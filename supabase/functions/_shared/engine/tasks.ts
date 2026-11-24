@@ -8,7 +8,7 @@
  * Grading is a pure function of (kind, answer key, submission). It runs only in the
  * Edge Function with the service role; the phone never decides correctness or points.
  */
-import { checkTextAnswer, normalizeCode, type MatchKind, type TextAnswerKey } from './normalize.ts';
+import { checkTextAnswer, normalizeCode, normalizeText, type MatchKind, type TextAnswerKey } from './normalize.ts';
 import { pairwiseOrderRatio } from './ordering.ts';
 import { verifyMoves, type Board } from './slidingPuzzle.ts';
 
@@ -37,13 +37,14 @@ export type AnswerKey =
   | { kind: 'sliding_puzzle'; start: Board }
   | { kind: 'bet_puzzle'; assignment: number[] }
   | { kind: 'sequence_memory'; stages: string[][] }
-  | { kind: 'finale'; text?: TextAnswerKey; choice?: string; code?: string };
+  | { kind: 'finale'; text?: TextAnswerKey; choice?: string; code?: string; letters?: string };
 
 /** What a team sends for ONE item. Shape depends on kind. */
 export type ItemSubmission =
   | { choice: string }
   | { text: string }
   | { code: string }
+  | { letters: string }
   | { order: string[] }
   | { moves: number[] }
   | { assignment: number[] }
@@ -138,6 +139,10 @@ export function gradeItem(key: AnswerKey, itemIndex: number, sub: ItemSubmission
     }
 
     case 'finale': {
+      if (key.letters !== undefined) {
+        const got = normalizeText(String(s.letters ?? s.text ?? '')).replace(/\s+/g, '');
+        return got === normalizeText(key.letters).replace(/\s+/g, '') ? yes() : no();
+      }
       if (key.code !== undefined) return normalizeCode(String(s.code ?? '')) === normalizeCode(key.code) ? yes() : no();
       if (key.choice !== undefined) return s.choice === key.choice ? yes() : no();
       if (key.text) return gradeText(s.text, key.text);

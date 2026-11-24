@@ -8,6 +8,7 @@ import content from './content.json';
 import type { AnswerKey } from '../../supabase/functions/_shared/engine/tasks.ts';
 import { moveTile, neighbors, isSolved, type Board } from '../../supabase/functions/_shared/engine/slidingPuzzle.ts';
 import { memoryWindows, memoryNow } from '../../supabase/functions/_shared/engine/memory.ts';
+import { makeClues, type Clue } from '../../supabase/functions/_shared/engine/clues.ts';
 import { computeFinals, finalsPlacements, finalsScoreEvents, gradeSubmission, pointsFor, settleBets, type Scoring } from '../../supabase/functions/game/logic.ts';
 
 type Json = any; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -75,6 +76,7 @@ export class MockServer {
   subs: Sub[] = [];
   bets: Bet[] = [];
   scores: ScoreEv[] = [];
+  clues: Clue[] = [];
   finals: { finalists: Json; options: Json; chosen_option: string | null; placements: Json } | null = null;
   publicRow: { state: Json; version: number; updated_at: string } | null = null;
   private seq = 1;
@@ -117,6 +119,7 @@ export class MockServer {
         bet_base: tt.kind === 'bet_puzzle' ? this.betBase(r) : null,
         solution: ['revealed', 'done'].includes(r.phase) ? r.solution_payload : null,
         finalists: r.finalists,
+        clue: r.round_no <= 8 && ['revealed', 'done'].includes(r.phase) ? this.clues[r.round_no - 1] ?? null : null,
         progress: { submitted_teams: new Set(this.subs.filter((s) => s.round_no === r.round_no && s.status !== 'late').map((s) => s.team_id)).size,
                     total_teams: r.round_no === 9 ? (r.finalists?.length ?? 0) : active.length },
       };
@@ -177,6 +180,9 @@ export class MockServer {
           return { round_no: gr.round_no, task_id: gr.task_id, phase: 'pending', item_count: Math.max(1, k.items?.length ?? k.stages?.length ?? 1),
                    opened_at: null, ends_at: null, paused_remaining_ms: null, public_payload: null, solution_payload: null, finalists: null };
         });
+        const finId: string | undefined = this.template.rounds.find((gr: Json) => gr.round_no === 9)?.task_id;
+        const fin: Json = finId ? this.secrets[finId] : null;
+        this.clues = fin?.letters ? makeClues(fin.letters) : [];
         this.refresh();
         return this.inst.id;
       }

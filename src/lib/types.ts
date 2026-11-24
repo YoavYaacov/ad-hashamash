@@ -25,6 +25,8 @@ export interface PublicRound {
   bet_base: number | null;
   solution: Record<string, any> | null;
   finalists: string[] | null;
+  /** Letter-journey clue: only on the score reveal of rounds 1–8. */
+  clue?: { letter: string; spot: number; rot: number } | null;
   progress: { submitted_teams: number; total_teams: number };
 }
 
