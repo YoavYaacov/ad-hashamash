@@ -10,6 +10,7 @@ import type { PublicState, TeamState } from '../lib/types';
 import { Timer } from '../components/Timer';
 import { APP_NAME } from '../config';
 import { askFor } from '../content/asks';
+import { Menorah } from '../components/Menorah';
 import { TaskInput } from '../tasks/TaskInput';
 
 
@@ -174,6 +175,43 @@ function Motivation({ score }: { score: NonNullable<TeamState['score']> }) {
   return body ? <p className="motivation">{body}</p> : null;
 }
 
+/** End of the game on the phones: the same podium as the projector, revealed 3 → 2 → 1. No encouragement lines. */
+function PhonePodium({ s, myId, myRank }: { s: PublicState; myId: string; myRank?: number }) {
+  const names = new Map(s.teams.map((x) => [x.id, x]));
+  const top = (s.standings ?? []).slice(0, 3).map((x: any) => ({ ...x, team: names.get(x.team_id) }));
+  const delay: Record<number, number> = { 3: 1.0, 2: 4.2, 1: 7.8 };
+  const order = [...top].reverse();                         // 3rd first, winner last (on top of the reveal)
+  const place = (i: number) => top.length - i;              // position in the podium (1..3)
+  return (
+    <div className="phone-podium">
+      <h2 className="pp-title">הטריבונה</h2>
+      <div className="pp-list">
+        {order.map((r: any, i: number) => {
+          const p = place(i);
+          return (
+            <div key={r.team_id} className={`pp-card pp${p} ${r.team_id === myId ? 'me' : ''}`} style={{ '--d': `${delay[p]}s` } as React.CSSProperties}>
+              <span className="pp-flash" aria-hidden="true" />
+              <span className="pp-rank">{r.rank}</span>
+              <div className="pp-body">
+                <b className="pp-name">{r.team?.name}</b>
+                {r.members?.length ? <span className="pp-members">{r.members.join(' · ')}</span> : null}
+              </div>
+              <span className="pp-pts">{r.total.toLocaleString('he-IL')}</span>
+              {r.team_id === myId && <span className="pp-me">זה אתם!</span>}
+            </div>
+          );
+        })}
+      </div>
+      {myRank && myRank > 3 && <p className="pp-mine">סיימתם במקום {myRank}</p>}
+      <div className="pp-greeting">
+        <Menorah lit={8} shamashLit size={84} />
+        <b>חנוכה שמח!</b>
+        <span>שמחים שנהניתם</span>
+      </div>
+    </div>
+  );
+}
+
 function ScoreCard({ score }: { score: NonNullable<TeamState['score']> }) {
   return (
     <div className="score-card enter" role="status">
@@ -192,7 +230,7 @@ function InGame({ s, team, offset, onChange }: { s: PublicState; team: TeamState
   const score = team.score;
 
   if (s.instance.status === 'finished') {
-    return <div className="center-msg"><h2>תודה ששיחקתם!</h2>{score && <ScoreCard score={score} />}</div>;
+    return <PhonePodium s={s} myId={t.id} myRank={score?.rank} />;
   }
   if (s.instance.status !== 'in_progress' || !r) {
     return (

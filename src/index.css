@@ -810,3 +810,41 @@ html { background: var(--night); }
 .match-people .person { justify-content: flex-start; align-items: center; text-align: right; }
 .match-items .sort-body { justify-content: flex-start; align-items: center; }
 .menorah-card { justify-content: flex-start; align-items: center; text-align: right; }
+
+/* Podium reveal: each place gets a bright flash in its metal colour, the name zooms out of the light */
+.p3 { --metal: 205, 127, 50; } .p2 { --metal: 223, 230, 242; } .p1 { --metal: 245, 200, 74; }
+.pod-team { position: relative; isolation: isolate; animation: pod-reveal 1.3s cubic-bezier(.2,1.1,.3,1) both; animation-delay: calc(var(--d) + .7s); }
+.pod-flash { position: absolute; left: 50%; top: 40%; width: 34cqw; height: 34cqw; margin: -17cqw 0 0 -17cqw; z-index: -1; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(255,255,255,.95) 0%, rgba(var(--metal), .9) 18%, rgba(var(--metal), .35) 42%, rgba(var(--metal), 0) 70%);
+  animation: pod-flash 2.2s ease-out both; animation-delay: calc(var(--d) + .5s); }
+.p1 .pod-flash { width: 46cqw; height: 46cqw; margin: -23cqw 0 0 -23cqw; }
+@keyframes pod-flash { 0% { opacity: 0; transform: scale(.2); } 18% { opacity: 1; transform: scale(1.15); } 100% { opacity: .38; transform: scale(.85); } }
+@keyframes pod-reveal { 0% { opacity: 0; transform: scale(2.2); filter: blur(14px) brightness(2.2); } 55% { opacity: 1; filter: blur(0) brightness(1.5); } 100% { opacity: 1; transform: scale(1); filter: none; } }
+.p3 .pod-name { color: #f0b98a; } .p2 .pod-name { color: #eef1f8; }
+.podium-stage .confetti { animation: fade-in 1.2s 8.6s both; }
+.podium-glow { animation: fade-in 2s 8.2s both; }
+
+/* Phone podium (end of game) */
+.phone-podium { display: grid; gap: 1rem; padding: .5rem 0 1rem; }
+.pp-title { margin: 0; text-align: center; color: var(--gold); font-size: 1.8rem; animation: enter-up .6s ease both; }
+.pp-list { display: flex; flex-direction: column-reverse; gap: .7rem; }       /* 1st ends up on top */
+.pp-card { position: relative; isolation: isolate; display: grid; grid-template-columns: 2.4rem 1fr auto; align-items: center; gap: .7rem; padding: .8rem .9rem;
+  border-radius: 16px; background: var(--night-2); border: 2px solid rgba(var(--metal), .8); overflow: hidden;
+  animation: pod-reveal 1.2s cubic-bezier(.2,1.1,.3,1) both; animation-delay: calc(var(--d) + .6s); }
+.pp3 { --metal: 205, 127, 50; } .pp2 { --metal: 223, 230, 242; } .pp1 { --metal: 245, 200, 74; }
+.pp1 { padding: 1.1rem .9rem; box-shadow: 0 0 24px rgba(245,200,74,.45); }
+.pp-flash { position: absolute; inset: -40%; z-index: -1; pointer-events: none;
+  background: radial-gradient(circle at 50% 50%, rgba(255,255,255,.9) 0%, rgba(var(--metal), .75) 20%, rgba(var(--metal), .15) 55%, rgba(var(--metal), 0) 70%);
+  animation: pod-flash 2s ease-out both; animation-delay: calc(var(--d) + .45s); }
+.pp-rank { width: 2.4rem; height: 2.4rem; display: grid; place-items: center; border-radius: 50%; background: rgb(var(--metal)); color: var(--night); font-size: 1.3rem; }
+.pp-name { display: block; font-size: 1.25rem; font-weight: 400; color: rgb(var(--metal)); line-height: 1.2; }
+.pp1 .pp-name { font-size: 1.5rem; }
+.pp-members { display: block; font-size: .9rem; color: var(--cream); opacity: .85; margin-top: .15rem; }
+.pp-pts { color: var(--gold-soft); font-size: 1.1rem; }
+.pp-me { position: absolute; top: .3rem; left: .6rem; font-size: .75rem; color: var(--night); background: var(--gold); border-radius: 999px; padding: .05rem .5rem; }
+.pp-card.me { outline: 2px dashed var(--gold); outline-offset: 2px; }
+.pp-mine { text-align: center; color: var(--cream); margin: 0; animation: enter-up .6s ease 9s both; }
+.pp-greeting { display: grid; justify-items: center; gap: .2rem; margin-top: .6rem; text-align: center; animation: pod-reveal 1.4s cubic-bezier(.2,1.1,.3,1) 9.4s both; }
+.pp-greeting b { font-size: 2rem; font-weight: 400; color: var(--gold); text-shadow: 0 0 18px rgba(245,200,74,.6); }
+.pp-greeting span { font-size: 1.2rem; color: var(--cream); }
+.pp-greeting .menorah { filter: drop-shadow(0 0 12px rgba(245,200,74,.5)); }

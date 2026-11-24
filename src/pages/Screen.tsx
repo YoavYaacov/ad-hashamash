@@ -480,7 +480,7 @@ function FinalResults({ s }: { s: PublicState }) {
   const top = ranked.slice(0, 3);
   const slot = (place: number) => top[place - 1];
   const order = [2, 1, 3];                               // classic podium, left to right
-  const delayOf: Record<number, number> = { 3: 0.6, 2: 1.8, 1: 3.2 };
+  const delayOf: Record<number, number> = { 3: 1.0, 2: 4.2, 1: 7.8 };   // 3 → 2 → 1, with suspense
   return (
     <div className="final-results podium-stage">
       <div className="podium-glow" aria-hidden="true" />
@@ -494,6 +494,7 @@ function FinalResults({ s }: { s: PublicState }) {
           return (
             <div key={place} className={`pod-col p${place}`} style={{ '--d': `${delayOf[place]}s` } as React.CSSProperties}>
               <div className="pod-team" dir="rtl">
+                <span className="pod-flash" aria-hidden="true" />
                 <div className="pod-name">{r.team?.name}</div>
                 {r.members?.length ? <div className="pod-members">{r.members.map((m: string, i: number) => <span key={i}>{m}</span>)}</div> : null}
                 <div className="pod-pts"><CountUp to={r.total} delay={delayOf[place] * 1000 + 500} /></div>
