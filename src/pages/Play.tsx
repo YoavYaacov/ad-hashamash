@@ -3,6 +3,7 @@
  * Identity = anonymous Supabase session (survives refresh). All state comes from the server.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useClient } from '../lib/clientContext';
 import { usePublicState, useServerClock } from '../lib/hooks';
 import { friendlyError } from '../lib/errors';
@@ -175,31 +176,34 @@ function Motivation({ score }: { score: NonNullable<TeamState['score']> }) {
   return body ? <p className="motivation">{body}</p> : null;
 }
 
-/** Confetti only on the phones of the top three. First place: way over the top. */
+/** Confetti only on the phones of the top three. First place: golden confetti rain + colourful fireworks on the edges. */
 function PhoneConfetti({ rank, start }: { rank: number; start: number }) {
   const big = rank === 1;
-  const colors = big ? ['#f5c84a', '#ffe7a3', '#fff3c4', '#e9b949', '#f28ab2', '#5c8df6', '#7bc67e', '#b57edc', '#e8604c']
-    : rank === 2 ? ['#eef1f8', '#b9c2d6', '#5c8df6', '#9fd8e8', '#ffffff'] : ['#f0b98a', '#c9834e', '#e8604c', '#f5b841', '#ffe7a3'];
-  const pieces = useMemo(() => {
-    const n = big ? 220 : 70;
-    return Array.from({ length: n }, (_, i) => {
-      const r = (k: number) => ((Math.sin(i * 12.9898 + k * 78.233 + rank) * 43758.5453) % 1 + 1) % 1;
-      const burst = big && i < 90;                              // first place also gets cannon bursts from the bottom corners
-      return { i, burst, side: i % 2 ? 1 : -1, x: r(1) * 100, d: 3 + r(2) * 3, delay: start + (burst ? (i % 3) * 1.6 + r(3) * .3 : r(3) * (big ? 6 : 3)),
-        drift: (r(4) - .5) * 30, spin: 360 + r(5) * 900, s: .7 + r(6) * .9, c: colors[i % colors.length], shape: ['rect', 'strip', 'circle', 'star'][Math.floor(r(7) * 4)],
-        bx: (15 + r(8) * 45), by: -(40 + r(9) * 50) };
-    });
-  }, [big, rank, start]);
-  return (
+  const colors = big ? ['#f5c84a', '#ffe7a3', '#fff3c4', '#e9b949', '#d4a53a', '#ffd86b']
+    : rank === 2 ? ['#eef1f8', '#b9c2d6', '#dfe6f2', '#ffffff', '#9aa6c2'] : ['#f0b98a', '#c9834e', '#e0a070', '#b8743e', '#ffd2a8'];
+  const pieces = useMemo(() => Array.from({ length: big ? 160 : 70 }, (_, i) => {
+    const r = (k: number) => ((Math.sin(i * 12.9898 + k * 78.233 + rank) * 43758.5453) % 1 + 1) % 1;
+    return { i, x: r(1) * 100, d: 3.5 + r(2) * 3, delay: start + r(3) * (big ? 5 : 3), drift: (r(4) - .5) * 24, spin: 360 + r(5) * 900,
+      s: .7 + r(6) * .9, c: colors[i % colors.length], shape: ['rect', 'strip', 'circle', 'star'][Math.floor(r(7) * 4)] };
+  }), [big, rank, start]);
+  // fireworks around the edges (first place only): left/right sides and the top corners
+  const spots = [[8, 18], [92, 22], [6, 55], [94, 60], [10, 85], [90, 88], [30, 8], [70, 10]];
+  const fwColors = ['#f5c84a', '#e8604c', '#5c8df6', '#7bc67e', '#f28ab2', '#b57edc', '#4fb0c6', '#ffe7a3'];
+  return createPortal(
     <div className={`phone-confetti ${big ? 'huge' : ''}`} aria-hidden="true">
       {big && <div className="pc-gold-flash" style={{ animationDelay: `${start}s` }} />}
       {pieces.map((p) => (
-        <i key={p.i} className={`${p.burst ? 'pb' : 'pf'} ${p.shape} ${p.burst ? (p.side > 0 ? 'l' : 'r') : ''}`}
-           style={{ left: p.burst ? undefined : `${p.x}%`, background: p.shape === 'star' ? undefined : p.c, color: p.c,
-             '--d': `${p.d}s`, '--delay': `${p.delay}s`, '--drift': `${p.drift}vw`, '--spin': `${p.spin}deg`, '--s': p.s,
-             '--bx': `${p.side * p.bx}vw`, '--by': `${p.by}vh` } as React.CSSProperties} />
+        <i key={p.i} className={`pf ${p.shape}`}
+           style={{ left: `${p.x}%`, background: p.shape === 'star' ? undefined : p.c, color: p.c,
+             '--d': `${p.d}s`, '--delay': `${p.delay}s`, '--drift': `${p.drift}vw`, '--spin': `${p.spin}deg`, '--s': p.s } as React.CSSProperties} />
       ))}
-    </div>
+      {big && spots.map(([x, y], k) => (
+        <div key={k} className="firework" style={{ left: `${x}%`, top: `${y}%`, '--fw': fwColors[k % fwColors.length], '--fd': `${start + .3 + k * .45}s` } as React.CSSProperties}>
+          {Array.from({ length: 14 }, (_, j) => <b key={j} style={{ '--a': `${j * (360 / 14)}deg` } as React.CSSProperties} />)}
+        </div>
+      ))}
+    </div>,
+    document.body,
   );
 }
 
