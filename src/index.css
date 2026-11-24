@@ -805,3 +805,4 @@ html { background: var(--night); }
 .top5-row { grid-template-columns: 1.6em minmax(0, 2.3fr) minmax(0, .7fr) auto; }
 .pts-glow { font-size: 1.22em; color: #ffe7a3; font-weight: 400; text-shadow: 0 0 8px rgba(245,184,65,.9), 0 0 18px rgba(245,184,65,.55); white-space: nowrap; }
 .motivation { line-height: 1.55; }
+.match-items .sort-row { grid-template-columns: .8rem 1fr; }

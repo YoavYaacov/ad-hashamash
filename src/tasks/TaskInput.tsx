@@ -427,7 +427,7 @@ function Matching({ client, s, subs, canSubmit, onChange }: CP) {
             </li>
           ))}
         </ol>
-        <Sortable ids={order} onChange={setOrder} className="match-items" disabled={!canSubmit} label="החנוכיות"
+        <Sortable ids={order} onChange={setOrder} className="match-items" arrows={false} disabled={!canSubmit} label="החנוכיות"
                   render={(id) => (
                     <span className="menorah-card">
                       {itemsArt[Number(id)] && <MenorahVariant id={itemsArt[Number(id)]} size={44} />}
