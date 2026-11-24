@@ -64,19 +64,32 @@ class Player {
 let player: Player | null = null;
 const getPlayer = () => { if (!player) { player = new Player(); (globalThis as Record<string, unknown>).__music = player; } return player; };
 
-/** Drives the player from what the screen is showing. Returns whether sound still needs one click. */
+/**
+ * Drives the player from what the screen is showing — no button.
+ * It tries to start on its own right away (works when the browser allows autoplay for the site);
+ * otherwise it starts silently on the first click / key / touch anywhere on the screen page.
+ */
 export function useMusic(track: TrackId | null, on: boolean, volume: number) {
-  const [needsClick, setNeedsClick] = useState(() => !getPlayer().unlocked);
+  const [ready, setReady] = useState(() => getPlayer().unlocked);
   const want = useRef<TrackId | null>(null);
   want.current = on ? track : null;
   useEffect(() => { getPlayer().setMaster(volume / 100); }, [volume]);
-  useEffect(() => { if (!needsClick) getPlayer().play(on ? track : null); }, [track, on, needsClick]);
-  const unlock = async () => {
-    const ok = await getPlayer().unlock();
-    setNeedsClick(!ok);
-    if (ok) getPlayer().play(want.current);
-  };
-  return { needsClick, unlock };
+  useEffect(() => { if (ready) getPlayer().play(on ? track : null); }, [track, on, ready]);
+  useEffect(() => {
+    if (ready) return;
+    let done = false;
+    const go = async () => {
+      if (done) return;
+      if (await getPlayer().unlock()) { done = true; setReady(true); getPlayer().play(want.current); cleanup(); }
+    };
+    const evs = ['pointerdown', 'keydown', 'touchstart', 'click'] as const;
+    const cleanup = () => evs.forEach((e) => window.removeEventListener(e, go, true));
+    evs.forEach((e) => window.addEventListener(e, go, true));
+    go();                                                   // try straight away (autoplay allowed?)
+    const retry = setInterval(go, 4000);                    // and keep trying quietly
+    return () => { done = true; cleanup(); clearInterval(retry); };
+  }, [ready]);
+  return { ready };
 }
 
 /** Puzzles get the calm candle-light bed; the other tasks get the happy one. */

@@ -450,7 +450,6 @@ function MusicControl({ music, onSet }: { music: { on: boolean; volume: number }
                onChange={(e) => setVol(Number(e.target.value))}
                onPointerUp={() => onSet(music.on, vol)} onKeyUp={() => onSet(music.on, vol)} onTouchEnd={() => onSet(music.on, vol)} />
       </div>
-      {music.on && <p className="muted small">במסך צריך ללחוץ פעם אחת על "הפעלת מוזיקה".</p>}
     </section>
   );
 }

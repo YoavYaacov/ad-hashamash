@@ -60,9 +60,8 @@ function Music({ s, offset }: { s: PublicState; offset: number }) {
   const mem = useMemoryClock(s.round?.kind === 'sequence_memory' ? s.round : null, offset);
   const track = pickTrack(s, Date.now() + offset, mem?.phase);
   const m = s.instance.music ?? { on: true, volume: 60 };
-  const { needsClick, unlock } = useMusic(track, m.on, m.volume);
-  if (!m.on || !needsClick) return null;
-  return <button className="sound-unlock" onClick={unlock}>הפעלת מוזיקה</button>;
+  useMusic(track, m.on, m.volume);
+  return null;
 }
 
 /** Which "screen" is showing: changing it triggers the fade-out → fade-in sequence. */
