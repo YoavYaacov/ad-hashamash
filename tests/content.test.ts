@@ -105,18 +105,37 @@ describe('trial content is self-consistent', () => {
     expect(t.public_content.start).toEqual(t.answer_key.start);
   });
 
-  it('bet puzzle: exactly one solution, no redundant clue, equals the key', () => {
-    // These predicates mirror the four written clues one by one.
-    const clues = [
-      (a: number[]) => a[1] === 2 || a[1] === 3,  // אבי: לא מתכת ולא זכוכית
-      (a: number[]) => a[2] !== 0 && a[3] !== 0,  // נועה ואיתי לא כסף
-      (a: number[]) => a[1] !== 2,                // לגו לא של אבי
-      (a: number[]) => a[2] !== 1,                // נועה לא זכוכית
+  it('bet puzzle (seating row): exactly one answer, no redundant clue, equals the key', () => {
+    // people: יוסף איתי נועה מלכה אבי (0..4) · items: זכוכית כסף חימר עץ לגו (0..4)
+    const [YOSEF, ITAI, NOA, MALKA] = [0, 1, 2, 3];
+    const [GLASS, SILVER, CLAY, WOOD] = [0, 1, 2, 3];
+    const KIDS = [ITAI, NOA];
+    const perms = (n: number): number[][] => n === 0 ? [[]] : perms(n - 1).flatMap((p) => Array.from({ length: n }, (_, i) => [...p.slice(0, i), n - 1, ...p.slice(i)]));
+    const edge = (x: number) => x === 0 || x === 4;
+    const adj = (x: number, y: number) => Math.abs(x - y) === 1;
+    // seat[p] = seat of person p; a[p] = menorah of person p; the menorah stands at its owner's seat.
+    type W = { seat: number[]; a: number[]; at: (m: number) => number };
+    const clues: ((w: W) => boolean)[] = [
+      (w) => w.seat[MALKA] === 2,                                            // מלכה באמצע
+      (w) => edge(w.seat[NOA]) && adj(w.seat[NOA], w.at(WOOD)),              // נועה בקצה, ליד העץ
+      (w) => edge(w.at(GLASS)),                                              // הזכוכית בקצה
+      (w) => adj(w.at(CLAY), w.at(GLASS)),                                   // מי שליד הזכוכית: חימר
+      (w) => !edge(w.at(SILVER)) && KIDS.every((k) => !adj(w.seat[k], w.at(SILVER))), // כסף: לא בקצה, לא ליד ילד
+      (w) => w.a[YOSEF] !== CLAY,                                            // יוסף לא חימר
     ];
+    const answers = (cs: typeof clues) => {
+      const found = new Set<string>();
+      for (const seat of perms(5)) for (const a of perms(5)) {
+        const w: W = { seat, a, at: (m) => seat[a.indexOf(m)] };
+        if (cs.every((c) => c(w))) found.add(a.join(','));
+      }
+      return [...found];
+    };
     const t = task('demo-bet');
     expect(t.public_content.clues).toHaveLength(clues.length);
-    expect(solveMatching(4, clues)).toEqual([t.answer_key.assignment]);
-    expect(redundantClues(4, clues)).toEqual([]);
+    expect(answers(clues)).toEqual([t.answer_key.assignment.join(',')]);
+    clues.forEach((_, i) => expect(answers(clues.filter((__, j) => j !== i)).length).toBeGreaterThan(1));   // every clue is needed
+    expect(t.answer_key.assignment.every((m: number, p: number) => m !== p)).toBe(true);                    // the start order is not a free hint
   });
 
   it('three pictures: each changed feature differs in exactly one picture; answer unique', () => {

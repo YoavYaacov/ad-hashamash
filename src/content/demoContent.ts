@@ -143,16 +143,22 @@ export const TASKS: TaskDef[] = [
     id: 'demo-bet', idea_no: 31, kind: 'bet_puzzle', title: 'הימור בחידה',
     instructions: 'בסבב הזה מהמרים על הנקודות שלכם!\nקודם בוחרים בטלפון על כמה להמר, ורק אחר כך נחשפת החידה.\nזהיר: רווח קטן, בלי סיכון.\nנועז: רווח גדול יותר, ואפשר גם להפסיד.\nהכול או כלום: הרווח הכי גדול, וגם ההפסד.\nפותרים נכון? מרוויחים. טועים? מפסידים לפי המסלול.',
     public_content: {
-      people: ['סבתא מלכה', 'דוֹד אבי', 'נועה', 'איתי'],
-      items: ['חנוכיית כסף', 'חנוכיית זכוכית לשמן', 'חנוכיית לגו', 'חנוכיית חימר'],
+      // Five people sit in a row; the clues are about the seating, the answer is only who lights which menorah.
+      // The order shown here is deliberately NOT the seating order.
+      setup: 'יוסף, מלכה, אבי והילדים נועה ואיתי יושבים בשורה. כל אחד מדליק את החנוכייה שלו, ממש מולו.',
+      people: ['יוסף', 'איתי', 'נועה', 'מלכה', 'אבי'],
+      items: ['זכוכית', 'כסף', 'חימר', 'עץ', 'לגו'],
       // Art ids for the drawings (src/components/BetArt.tsx). Order matches people / items.
-      people_art: ['grandma', 'uncle', 'girl', 'boy'],
-      items_art: ['silver', 'glass', 'lego', 'clay'],
+      people_art: ['grandpa', 'boy', 'girl', 'grandma', 'uncle'],
+      items_art: ['glass', 'silver', 'clay', 'wood', 'lego'],
+      kids: [1, 2],
       clues: [
-        'דוֹד אבי בחר בחנוכייה שאינה עשויה ממתכת, וגם לא מזכוכית.',
-        'נועה ואיתי לא בחרו בחנוכיית הכסף.',
-        'חנוכיית הלגו לא שייכת לדוֹד אבי.',
-        'נועה לא מדליקה בשמן, ולכן לא בחרה בחנוכיית הזכוכית.',
+        'מלכה יושבת בדיוק באמצע.',
+        'נועה יושבת באחד הקצוות, ליד חנוכיית העץ.',
+        'חנוכיית הזכוכית עומדת באחד הקצוות.',
+        'מי שיושב ליד חנוכיית הזכוכית מדליק בחנוכיית החימר.',
+        'חנוכיית הכסף לא עומדת בקצה, ואף אחד מהילדים לא יושב לידה.',
+        'יוסף לא מדליק בחנוכיית החימר.',
       ],
     },
     duration_sec: 240, scoring: { method: 'bet' }, attempts_limit: 1,
@@ -161,7 +167,8 @@ export const TASKS: TaskDef[] = [
       { id: 'mid', label: 'נועז', winMultiplier: 1, lossMultiplier: 0.5 },
       { id: 'all', label: 'הכול או כלום', winMultiplier: 2, lossMultiplier: 1 },
     ] } },
-    answer_key: { kind: 'bet_puzzle', assignment: [0, 3, 2, 1] },
+    // יוסף→עץ, איתי→זכוכית, נועה→לגו, מלכה→כסף, אבי→חימר (unique: checked over all 120×120 seatings)
+    answer_key: { kind: 'bet_puzzle', assignment: [3, 0, 4, 1, 2] },
   },
   {
     id: 'demo-finale', idea_no: null, kind: 'finale', title: 'הַשַּׁמָּשׁ',

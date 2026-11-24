@@ -1,9 +1,9 @@
 /**
- * Original little characters and four different menorahs for the bet puzzle (task 31).
+ * Original little characters and five different menorahs for the bet puzzle (task 31).
  * Flat, friendly shapes in one style; 64×64 viewBox each.
  */
-export type CharacterId = 'grandma' | 'uncle' | 'girl' | 'boy';
-export type MenorahId = 'silver' | 'glass' | 'lego' | 'clay';
+export type CharacterId = 'grandma' | 'uncle' | 'girl' | 'boy' | 'grandpa';
+export type MenorahId = 'silver' | 'glass' | 'lego' | 'clay' | 'wood';
 
 const SKIN = '#f1c7a0';
 const Eyes = ({ y = 30 }: { y?: number }) => <><circle cx="27" cy={y} r="1.9" fill="#2b2b2b" /><circle cx="37" cy={y} r="1.9" fill="#2b2b2b" /></>;
@@ -53,6 +53,22 @@ export function Character({ id, size = 56 }: { id: CharacterId; size?: number })
           <Eyes y={31} /><path d="M27 37 q5 5 10 0" stroke="#7a3d2a" strokeWidth="1.8" fill="#fff" strokeLinecap="round" /><Cheeks />
         </g>
       )}
+      {id === 'grandpa' && (
+        <g>
+          <path d="M12 64 q0 -20 20 -20 q20 0 20 20z" fill="#c8a46e" />
+          <path d="M27 46 l5 9 l5 -9z" fill="#f4ead2" />
+          <circle cx="24" cy="54" r="1.3" fill="#7a5a32" /><circle cx="40" cy="54" r="1.3" fill="#7a5a32" />
+          <circle cx="32" cy="30" r="14" fill={SKIN} />
+          <path d="M18 31 q-2 -6 2 -9 q0 5 3 7z M46 31 q2 -6 -2 -9 q0 5 -3 7z" fill="#e8e6f0" />
+          <path d="M17 22 q3 -11 15 -11 q12 0 15 11 q2 1 2 3 h-34 q0 -2 2 -3z" fill="#5c6b7a" />
+          <path d="M15 25 h18 q-2 3 -18 1z" fill="#4a5866" />
+          <path d="M24 26 q2 -2 4 0 M36 26 q2 -2 4 0" stroke="#e8e6f0" strokeWidth="1.6" fill="none" strokeLinecap="round" />
+          <Eyes />
+          <path d="M23 37 q4 -4 9 -1 q5 -3 9 1 q-4 3 -9 0.5 q-5 2.5 -9 -0.5z" fill="#e8e6f0" />
+          <path d="M29 41 q3 2 6 0" stroke="#7a3d2a" strokeWidth="1.6" fill="none" strokeLinecap="round" />
+          <Cheeks />
+        </g>
+      )}
     </svg>
   );
 }
@@ -95,6 +111,18 @@ export function MenorahVariant({ id, size = 64 }: { id: MenorahId; size?: number
           <path d="M28 44 q4 -20 8 0z" fill="#d98a6c" stroke="#a9563e" strokeWidth="1" /><ellipse cx="32" cy="24" rx="4" ry="3" fill="#d98a6c" stroke="#a9563e" strokeWidth="1" />
           <circle cx="18" cy="48" r="1.4" fill="#f4ead2" /><circle cx="32" cy="50" r="1.4" fill="#f4ead2" /><circle cx="46" cy="48" r="1.4" fill="#f4ead2" />
           {[...xs.map((x, i) => [x, 37 - (i % 2)]), [32, 21]].map(([x, y], i) => <path key={i} d={`M${x} ${y} q2 -4 0 -7 q-2 3 0 7z`} fill="#f5b841" />)}
+        </g>
+      )}
+      {id === 'wood' && (
+        <g>
+          <rect x="4" y="38" width="56" height="9" rx="2.5" fill="#a0683a" stroke="#6e4423" strokeWidth="1" />
+          <path d="M8 41 q12 2 22 0 q12 -2 26 1 M10 44.5 q14 1.5 26 -0.5 q10 -1 20 0.5" stroke="#7d4f2b" strokeWidth=".8" fill="none" />
+          <rect x="27" y="47" width="10" height="9" fill="#a0683a" stroke="#6e4423" strokeWidth="1" />
+          <rect x="16" y="56" width="32" height="5" rx="2" fill="#8a5630" stroke="#6e4423" strokeWidth="1" />
+          {xs.map((x) => <rect key={x} x={x - 2.5} y="31" width="5" height="7" rx="1" fill="#c48a52" stroke="#6e4423" strokeWidth=".8" />)}
+          <rect x="29" y="18" width="6" height="20" rx="1" fill="#c48a52" stroke="#6e4423" strokeWidth=".8" />
+          <circle cx="32" cy="42.5" r="2" fill="#6e4423" opacity=".6" />
+          {[...xs.map((x) => [x, 30]), [32, 17]].map(([x, y], i) => <path key={i} d={`M${x} ${y} q2 -4 0 -7 q-2 3 0 7z`} fill="#f5b841" />)}
         </g>
       )}
     </svg>

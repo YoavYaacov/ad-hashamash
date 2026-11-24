@@ -448,23 +448,27 @@ function Matching({ client, s, subs, canSubmit, onChange }: CP) {
   const { busy, msg, send } = useSubmitter(client, onChange);
   if (submittedItems(subs).has(0)) return <p className="center-msg ok">נשלח</p>;
   const assignment = order.map(Number);
+  const n = people.length;
   return (
     <div className="task matching">
-      {clues.length > 0 && <ol className="match-clues">{clues.map((cl, i) => <li key={i}>{cl}</li>)}</ol>}
-      <p className="drag-hint">גוררים כל חנוכייה מול מי שבחר בה</p>
-      <div className="match-board">
-        <ol className="match-people" aria-label="המשתתפים">
+      <div className="match-clues">
+        {c.setup && <p className="match-setup">{c.setup}</p>}
+        {clues.length > 0 && <ol>{clues.map((cl, i) => <li key={i}>{cl}</li>)}</ol>}
+      </div>
+      <p className="drag-hint">גוררים כל חנוכייה אל מתחת למי שבחר בה<small>הסדר כאן הוא לא סדר הישיבה</small></p>
+      <div className="match-board h" style={{ '--n': n } as React.CSSProperties}>
+        <ol className="match-people h" aria-label="בני המשפחה">
           {people.map((p, i) => (
             <li key={i} className="person">
-              {peopleArt[i] && <Character id={peopleArt[i]} size={44} />}
+              {peopleArt[i] && <Character id={peopleArt[i]} size={40} />}
               <span>{p}</span>
             </li>
           ))}
         </ol>
-        <Sortable ids={order} onChange={setOrder} className="match-items" arrows={false} disabled={!canSubmit} label="החנוכיות"
+        <Sortable ids={order} onChange={setOrder} axis="x" className="match-items" disabled={!canSubmit} label="החנוכיות"
                   render={(id) => (
                     <span className="menorah-card">
-                      {itemsArt[Number(id)] && <MenorahVariant id={itemsArt[Number(id)]} size={44} />}
+                      {itemsArt[Number(id)] && <MenorahVariant id={itemsArt[Number(id)]} size={40} />}
                       <span>{items[Number(id)]}</span>
                     </span>
                   )} />

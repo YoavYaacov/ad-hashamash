@@ -296,6 +296,7 @@ function ScreenContent({ s }: { s: PublicState }) {
     case 'bet_puzzle':
       return (
         <div className="bet-puzzle">
+          {c.setup && <p className="bet-setup">{c.setup}</p>}
           <div className="bet-cast stagger">
             {(c.people ?? []).map((p: string, i: number) => (
               <figure key={p} className="cast person" style={{ '--i': i } as React.CSSProperties}>
@@ -305,7 +306,7 @@ function ScreenContent({ s }: { s: PublicState }) {
           </div>
           <div className="bet-cast stagger">
             {(c.items ?? []).map((p: string, i: number) => (
-              <figure key={p} className="cast menorah" style={{ '--i': i + 4 } as React.CSSProperties}>
+              <figure key={p} className="cast menorah" style={{ '--i': i + (c.people?.length ?? 4) } as React.CSSProperties}>
                 {c.items_art?.[i] && <MenorahVariant id={c.items_art[i]} size={96} />}<figcaption>{p}</figcaption>
               </figure>
             ))}
@@ -396,7 +397,6 @@ function Solution({ s }: { s: PublicState }) {
             <div key={i} className="pair" style={{ '--i': i } as React.CSSProperties}>
               {c.people_art?.[i] && <Character id={c.people_art[i]} size={84} />}
               <span className="who">{c.people?.[i]}</span>
-              <span className="arrow" aria-hidden="true">←</span>
               {c.items_art?.[j] && <MenorahVariant id={c.items_art[j]} size={84} />}
               <b>{c.items?.[j]}</b>
             </div>

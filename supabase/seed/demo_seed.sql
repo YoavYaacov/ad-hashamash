@@ -21,7 +21,7 @@ insert into public.task_templates (id, idea_no, kind, title, instructions, publi
 זהיר: רווח קטן, בלי סיכון.
 נועז: רווח גדול יותר, ואפשר גם להפסיד.
 הכול או כלום: הרווח הכי גדול, וגם ההפסד.
-פותרים נכון? מרוויחים. טועים? מפסידים לפי המסלול.', '{"people":["סבתא מלכה","דוֹד אבי","נועה","איתי"],"items":["חנוכיית כסף","חנוכיית זכוכית לשמן","חנוכיית לגו","חנוכיית חימר"],"people_art":["grandma","uncle","girl","boy"],"items_art":["silver","glass","lego","clay"],"clues":["דוֹד אבי בחר בחנוכייה שאינה עשויה ממתכת, וגם לא מזכוכית.","נועה ואיתי לא בחרו בחנוכיית הכסף.","חנוכיית הלגו לא שייכת לדוֹד אבי.","נועה לא מדליקה בשמן, ולכן לא בחרה בחנוכיית הזכוכית."]}', 240, '{"method":"bet"}', 1, 'captain_only', '{"bet":{"baseMethod":"average_floor100","minBase":100,"defaultTrack":"safe","tracks":[{"id":"safe","label":"זהיר","winMultiplier":0.5,"lossMultiplier":0},{"id":"mid","label":"נועז","winMultiplier":1,"lossMultiplier":0.5},{"id":"all","label":"הכול או כלום","winMultiplier":2,"lossMultiplier":1}]}}', 'candidate', true),
+פותרים נכון? מרוויחים. טועים? מפסידים לפי המסלול.', '{"setup":"יוסף, מלכה, אבי והילדים נועה ואיתי יושבים בשורה. כל אחד מדליק את החנוכייה שלו, ממש מולו.","people":["יוסף","איתי","נועה","מלכה","אבי"],"items":["זכוכית","כסף","חימר","עץ","לגו"],"people_art":["grandpa","boy","girl","grandma","uncle"],"items_art":["glass","silver","clay","wood","lego"],"kids":[1,2],"clues":["מלכה יושבת בדיוק באמצע.","נועה יושבת באחד הקצוות, ליד חנוכיית העץ.","חנוכיית הזכוכית עומדת באחד הקצוות.","מי שיושב ליד חנוכיית הזכוכית מדליק בחנוכיית החימר.","חנוכיית הכסף לא עומדת בקצה, ואף אחד מהילדים לא יושב לידה.","יוסף לא מדליק בחנוכיית החימר."]}', 240, '{"method":"bet"}', 1, 'captain_only', '{"bet":{"baseMethod":"average_floor100","minBase":100,"defaultTrack":"safe","tracks":[{"id":"safe","label":"זהיר","winMultiplier":0.5,"lossMultiplier":0},{"id":"mid","label":"נועז","winMultiplier":1,"lossMultiplier":0.5},{"id":"all","label":"הכול או כלום","winMultiplier":2,"lossMultiplier":1}]}}', 'candidate', true),
 ('demo-finale', null, 'finale', 'הַשַּׁמָּשׁ', 'לאורך כל הערב, בכל נר, הסתתרה אות אחת.
 מי ששם לב, כבר יודע.
 סדרו את שמונה האותיות למילה אחת ושבצו אותן בקני החנוכייה.
@@ -40,7 +40,7 @@ insert into private.task_secrets (task_id, answer_key, verified_note) values
 ('demo-truth', '{"kind":"truth_or_fiction","items":[{"choice":"3"},{"choice":"1"},{"choice":"4"}]}', 'trial content'),
 ('demo-order', '{"kind":"ordering","correct":["a","b","c","d","e","f"]}', 'trial content'),
 ('demo-slide', '{"kind":"sliding_puzzle","start":[7,3,6,2,0,8,1,4,5]}', 'trial content'),
-('demo-bet', '{"kind":"bet_puzzle","assignment":[0,3,2,1]}', 'trial content'),
+('demo-bet', '{"kind":"bet_puzzle","assignment":[3,0,4,1,2]}', 'trial content'),
 ('demo-finale', '{"kind":"finale","letters":"סופגניות"}', 'trial content'),
 ('demo-video', '{"kind":"video_memory","items":[{"choice":"ב"}]}', 'trial content'),
 ('demo-symbols', '{"kind":"symbols","items":[{"text":{"canonical":"פך השמן","alternatives":["פך שמן","כד השמן"]}},{"text":{"canonical":"נס במקדש"}}]}', 'trial content')

@@ -976,3 +976,29 @@ input.lm-cell:disabled { opacity: .7; }
 .pp-side .pp-me { position: static; white-space: nowrap; }
 .vault-phone.done .opening-safe { transition: translate 1.4s cubic-bezier(.25,1.1,.45,1); }
 .vault-phone.done .opening-safe:has(.safe-open) { translate: 13% 0; }   /* the door swings out to the left: keep the whole picture centred */
+
+/* ── Bet puzzle, five in a row: people on top, their menorahs dragged sideways underneath ── */
+.match-clues ol { margin: 0; padding-inline-start: 1.1rem; display: grid; gap: .2rem; }
+.match-setup { margin: 0 0 .3rem; color: var(--gold-soft); }
+.drag-hint small { display: block; font-size: .78rem; opacity: .8; }
+.match-board.h { display: grid; grid-template-columns: none; gap: .35rem; }
+.match-people.h { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: .3rem; }
+.match-people.h .person { height: auto; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: .15rem; padding: .35rem .1rem; font-size: .95rem; }
+.sortable.axis-x.match-items { grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: .3rem; }
+.match-items.axis-x .sort-row { height: auto; grid-template-columns: none; grid-template-rows: auto auto; justify-items: center; gap: .3rem; padding: .4rem .1rem .45rem; }
+.match-items.axis-x .grip i { width: 16px; }
+.match-items.axis-x .sort-body { display: flex; justify-content: center; }
+.match-items.axis-x .menorah-card { flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: .15rem; font-size: .9rem; }
+/* projector */
+.bet-setup { margin: 0; font-size: 1.2em; color: var(--gold-soft); text-align: center; }
+.bet-cast .cast { min-width: 0; padding: .5em .9em .4em; }
+.bet-solution { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2cqw; }
+.bet-solution .pair { grid-template-columns: none; justify-items: center; gap: .3em; padding: .8em .5em; text-align: center; }
+.bet-solution .who { text-align: center; }
+.bet-puzzle { gap: 1.3cqh; }
+.bet-puzzle .clues { font-size: 1em; display: block; columns: 2; column-gap: 4cqw; max-width: 80cqw; padding-inline-start: 1.4em; }
+.bet-puzzle .clues li { break-inside: avoid; margin-bottom: .35cqh; }
+.bet-solution { width: min(78cqw, 1400px); }
+.bet-solution .pair { font-size: 1.45em; padding: 1em .5em; }
+.bet-solution .bet-art { width: 13cqh; height: 13cqh; }
+.bet-puzzle .clues { text-align: right; }

@@ -1,6 +1,6 @@
 /**
  * Touch-first drag-to-reorder list. Grab a row, slide it; the other rows glide out of its way.
- * Pointer events (works with finger, mouse and pen), no library. Small arrow buttons stay as a fallback.
+ * Pointer events (works with finger, mouse and pen), no library. Vertical rows or a sideways row of cards.
  */
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 
@@ -13,14 +13,17 @@ interface Props {
   /** Hide the ▲▼ fallback (e.g. when space is tight). */
   arrows?: boolean;
   label?: string;
+  /** 'y' (default): a column of rows. 'x': a row of cards, dragged sideways (RTL aware). */
+  axis?: 'x' | 'y';
 }
 
-interface Geo { tops: number[]; heights: number[]; gap: number; startY: number; pointer: number }
+/** tops/heights are generic: along the drag axis, measured in reading order (from the right in RTL rows). */
+interface Geo { tops: number[]; heights: number[]; gap: number; startY: number; pointer: number; sign: 1 | -1 }
 interface Drag { from: number; to: number; dy: number; settling: boolean }
 
 const buzz = (ms = 10) => { try { navigator.vibrate?.(ms); } catch { /* unsupported */ } };
 
-export function Sortable({ ids, onChange, render, disabled, className = '', arrows = false, label }: Props) {
+export function Sortable({ ids, onChange, render, disabled, className = '', arrows = false, label, axis = 'y' }: Props) {
   const listRef = useRef<HTMLOListElement>(null);
   const geo = useRef<Geo | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
@@ -61,11 +64,14 @@ export function Sortable({ ids, onChange, render, disabled, className = '', arro
   const onDown = (e: React.PointerEvent, i: number) => {
     if (disabled || drag || (e.target as HTMLElement).closest('button')) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
-    const rows = Array.from(listRef.current?.children ?? []) as HTMLElement[];
-    const tops = rows.map((r) => r.offsetTop);
-    const heights = rows.map((r) => r.offsetHeight);
+    const list = listRef.current!;
+    const rows = Array.from(list.children) as HTMLElement[];
+    const rtl = axis === 'x' && getComputedStyle(list).direction === 'rtl';
+    const tops = rows.map((r) => axis === 'y' ? r.offsetTop : rtl ? list.clientWidth - r.offsetLeft - r.offsetWidth : r.offsetLeft);
+    const heights = rows.map((r) => axis === 'y' ? r.offsetHeight : r.offsetWidth);
     const gap = rows.length > 1 ? Math.max(0, tops[1] - tops[0] - heights[0]) : 0;
-    geo.current = { tops, heights, gap, startY: e.clientY, pointer: e.pointerId };
+    const sign = rtl ? -1 : 1;
+    geo.current = { tops, heights, gap, startY: (axis === 'y' ? e.clientY : e.clientX) * sign, pointer: e.pointerId, sign };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     buzz(8);
     setMoved(null);
@@ -76,7 +82,7 @@ export function Sortable({ ids, onChange, render, disabled, className = '', arro
     const g = geo.current;
     if (!drag || drag.settling || !g || e.pointerId !== g.pointer) return;
     const first = g.tops[0], last = g.tops[ids.length - 1] + g.heights[ids.length - 1];
-    let dy = e.clientY - g.startY;
+    let dy = (axis === 'y' ? e.clientY : e.clientX) * g.sign - g.startY;
     dy = Math.max(first - g.tops[drag.from] - 12, Math.min(last - g.tops[drag.from] - g.heights[drag.from] + 12, dy));
     const to = targetIndex(drag.from, dy);
     if (to !== drag.to) buzz(6);
@@ -107,14 +113,15 @@ export function Sortable({ ids, onChange, render, disabled, className = '', arro
   };
 
   return (
-    <ol ref={listRef} className={`sortable ${className} ${drag ? 'is-dragging' : ''} ${reset ? 'no-anim' : ''}`} aria-label={label}>
+    <ol ref={listRef} className={`sortable axis-${axis} ${className} ${drag ? 'is-dragging' : ''} ${reset ? 'no-anim' : ''}`} aria-label={label}>
       {ids.map((id, i) => {
         const me = drag?.from === i;
         const y = me ? drag!.dy : shiftFor(i);
+        const move = axis === 'y' ? `translate3d(0, ${y}px, 0)` : `translate3d(${y * (geo.current?.sign ?? 1)}px, 0, 0)`;
         return (
           <li key={id}
               className={`sort-row ${me ? 'lifted' : ''} ${me && drag?.settling ? 'settling' : ''} ${moved === id && !drag ? 'just-moved' : ''}`}
-              style={{ transform: y ? `translate3d(0, ${y}px, 0)` : undefined }}
+              style={{ transform: y ? move : undefined }}
               onPointerDown={(e) => onDown(e, i)} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
             <span className="grip" aria-hidden="true"><i /><i /><i /></span>
             <div className="sort-body">{render(id, i, me)}</div>
