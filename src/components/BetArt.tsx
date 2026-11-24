@@ -30,7 +30,7 @@ export function Character({ id, size = 56 }: { id: CharacterId; size?: number })
           <circle cx="32" cy="30" r="14" fill={SKIN} />
           <path d="M18 27 q2 -12 14 -12 q12 0 14 12 q-6 -5 -14 -5 q-8 0 -14 5z" fill="#5a3a24" />
           <path d="M20 36 q12 14 24 0 q-2 10 -12 10 q-10 0 -12 -10z" fill="#5a3a24" />
-          <path d="M22 13 a10 6 0 0 1 20 0z" fill="#3b6fd9" />
+          <path d="M23 18.5 a9 5.5 0 0 1 18 0z" fill="#3b6fd9" />
           <Eyes /><path d="M28 38 q4 3 8 0" stroke="#f4ead2" strokeWidth="1.8" fill="none" strokeLinecap="round" />
         </g>
       )}
