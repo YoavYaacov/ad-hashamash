@@ -181,13 +181,13 @@ function PhoneConfetti({ rank, start }: { rank: number; start: number }) {
   const big = rank === 1;
   const colors = big ? ['#f5c84a', '#ffe7a3', '#fff3c4', '#e9b949', '#d4a53a', '#ffd86b']
     : rank === 2 ? ['#eef1f8', '#b9c2d6', '#dfe6f2', '#ffffff', '#9aa6c2'] : ['#f0b98a', '#c9834e', '#e0a070', '#b8743e', '#ffd2a8'];
-  const pieces = useMemo(() => Array.from({ length: big ? 160 : 70 }, (_, i) => {
+  const pieces = useMemo(() => Array.from({ length: big ? 90 : 60 }, (_, i) => {
     const r = (k: number) => ((Math.sin(i * 12.9898 + k * 78.233 + rank) * 43758.5453) % 1 + 1) % 1;
     return { i, x: r(1) * 100, d: 3.5 + r(2) * 3, delay: start + r(3) * (big ? 5 : 3), drift: (r(4) - .5) * 24, spin: 360 + r(5) * 900,
-      s: .7 + r(6) * .9, c: colors[i % colors.length], shape: ['rect', 'strip', 'circle', 'star'][Math.floor(r(7) * 4)] };
+      s: .7 + r(6) * .9, c: colors[i % colors.length], shape: ['rect', 'strip', 'circle', 'rect', 'strip', 'star'][Math.floor(r(7) * 6)] };
   }), [big, rank, start]);
   // fireworks around the edges (first place only): left/right sides and the top corners
-  const spots = [[8, 18], [92, 22], [6, 55], [94, 60], [10, 85], [90, 88], [30, 8], [70, 10]];
+  const spots = [[8, 18], [92, 24], [7, 58], [93, 64], [12, 88], [88, 90]];
   const fwColors = ['#f5c84a', '#e8604c', '#5c8df6', '#7bc67e', '#f28ab2', '#b57edc', '#4fb0c6', '#ffe7a3'];
   return createPortal(
     <div className={`phone-confetti ${big ? 'huge' : ''}`} aria-hidden="true">
@@ -199,7 +199,7 @@ function PhoneConfetti({ rank, start }: { rank: number; start: number }) {
       ))}
       {big && spots.map(([x, y], k) => (
         <div key={k} className="firework" style={{ left: `${x}%`, top: `${y}%`, '--fw': fwColors[k % fwColors.length], '--fd': `${start + .3 + k * .45}s` } as React.CSSProperties}>
-          {Array.from({ length: 14 }, (_, j) => <b key={j} style={{ '--a': `${j * (360 / 14)}deg` } as React.CSSProperties} />)}
+          {Array.from({ length: 10 }, (_, j) => <b key={j} style={{ '--a': `${j * 36}deg` } as React.CSSProperties} />)}
         </div>
       ))}
     </div>,
