@@ -444,6 +444,10 @@ function Standings({ s }: { s: PublicState }) {
 /** Lots of confetti: a steady rain plus two side cannons that fire in waves. Pure CSS, deterministic. */
 const CONFETTI_COLORS = ['#e9b949', '#f5d77a', '#5c8df6', '#7bc67e', '#f28ab2', '#b57edc', '#4fb0c6', '#f4ead2', '#e8604c'];
 const SHAPES = ['rect', 'strip', 'circle', 'star'];
+/** Fireworks around the edges of the projector (sides and top corners), bursting in turns. */
+const FW_SPOTS = [[6, 16], [94, 14], [4, 48], [96, 46], [8, 80], [92, 78], [22, 6], [78, 7], [3, 30], [97, 64]];
+const FW_COLORS = ['#f5c84a', '#e8604c', '#5c8df6', '#7bc67e', '#f28ab2', '#b57edc', '#4fb0c6', '#ffe7a3'];
+
 function Confetti() {
   const rain = useMemo(() => Array.from({ length: 140 }, (_, i) => {
     const r = (k: number) => ((Math.sin(i * 12.9898 + k * 78.233) * 43758.5453) % 1 + 1) % 1;
@@ -452,23 +456,16 @@ function Confetti() {
       s: .6 + r(6) * .9, c: CONFETTI_COLORS[i % CONFETTI_COLORS.length], shape: SHAPES[Math.floor(r(7) * SHAPES.length)],
     };
   }), []);
-  const bursts = useMemo(() => Array.from({ length: 72 }, (_, i) => {
-    const r = (k: number) => ((Math.sin(i * 39.3467 + k * 11.135) * 24634.6345) % 1 + 1) % 1;
-    const side = i % 2 ? 1 : -1;
-    return {
-      side, wave: Math.floor(i / 24), bx: side * (18 + r(1) * 38), by: -(30 + r(2) * 45), spin: 300 + r(3) * 700,
-      c: CONFETTI_COLORS[(i * 5) % CONFETTI_COLORS.length], shape: SHAPES[Math.floor(r(4) * SHAPES.length)], s: .7 + r(5) * .8,
-    };
-  }), []);
   return (
     <div className="confetti" aria-hidden="true">
       {rain.map((p, i) => (
         <i key={i} className={`cf ${p.shape}`} style={{ left: `${p.x}%`, background: p.shape === 'star' ? undefined : p.c, color: p.c,
           '--d': `${p.d}s`, '--delay': `${p.delay}s`, '--drift': `${p.drift}cqw`, '--spin': `${p.spin}deg`, '--s': p.s } as React.CSSProperties} />
       ))}
-      {bursts.map((p, i) => (
-        <i key={`b${i}`} className={`burst ${p.shape} ${p.side > 0 ? 'from-left' : 'from-right'}`} style={{ background: p.shape === 'star' ? undefined : p.c, color: p.c,
-          '--bx': `${p.bx}cqw`, '--by': `${p.by}cqh`, '--spin': `${p.spin}deg`, '--s': p.s, '--delay': `${.3 + p.wave * 2.6 + (i % 6) * .05}s` } as React.CSSProperties} />
+      {FW_SPOTS.map(([x, y], k) => (
+        <div key={`fw${k}`} className="firework big" style={{ left: `${x}%`, top: `${y}%`, '--fw': FW_COLORS[k % FW_COLORS.length], '--fd': `${.4 + k * .37}s` } as React.CSSProperties}>
+          {Array.from({ length: 12 }, (_, j) => <b key={j} style={{ '--a': `${j * 30}deg` } as React.CSSProperties} />)}
+        </div>
       ))}
     </div>
   );
