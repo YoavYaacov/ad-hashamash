@@ -53,3 +53,29 @@ export function heatAnswer(h: Heat): number {
 
 /** The sliding-puzzle picture: the festive living room. */
 export const PUZZLE_SCENE: RoomSpec = { type: 'room', kippah: 'blue', donuts: 4, window: 'open', candles: 8, shamash: true, dreidel: 'נ', cat: true, frame: 'gold', moon: true };
+
+/** Where each changeable feature sits in the wide (480×180) scenes — used to circle the changes on the final reveal. */
+export interface Mark { x: number; y: number; rx: number; ry: number }
+export const HOTSPOTS: Record<string, Record<string, Mark>> = {
+  room: {
+    kippah: { x: 410, y: 99, rx: 16, ry: 13 }, donuts: { x: 170, y: 103, rx: 40, ry: 17 }, window: { x: 422, y: 52, rx: 50, ry: 46 },
+    candles: { x: 267, y: 58, rx: 14, ry: 16 }, shamash: { x: 245, y: 40, rx: 12, ry: 14 }, dreidel: { x: 334, y: 94, rx: 18, ry: 22 },
+    cat: { x: 64, y: 126, rx: 34, ry: 22 }, frame: { x: 52, y: 46, rx: 38, ry: 32 }, moon: { x: 440, y: 42, rx: 15, ry: 15 },
+  },
+  kitchen: {
+    apron: { x: 428, y: 105, rx: 22, ry: 26 }, hat: { x: 428, y: 37, rx: 22, ry: 15 }, tray: { x: 261, y: 113, rx: 72, ry: 20 },
+    jam: { x: 357, y: 112, rx: 22, ry: 26 }, clock: { x: 250, y: 38, rx: 30, ry: 30 }, steam: { x: 73, y: 52, rx: 50, ry: 26 },
+    bowl: { x: 153, y: 116, rx: 32, ry: 18 },
+  },
+  street: {
+    door: { x: 266, y: 120, rx: 24, ry: 34 }, wcandles: { x: 207, y: 94, rx: 26, ry: 18 }, lamp: { x: 70, y: 46, rx: 34, ry: 28 },
+    tree: { x: 400, y: 90, rx: 40, ry: 42 }, dreidel: { x: 345, y: 128, rx: 22, ry: 24 }, moon: { x: 440, y: 34, rx: 24, ry: 24 },
+    bike: { x: 129, y: 132, rx: 34, ry: 22 },
+  },
+};
+
+/** For each picture of a heat: the circles around ITS changed details (shown only in the final reveal). */
+export function heatMarks(h: Heat): Mark[][] {
+  const t = (h.base as { type: string }).type;
+  return [0, 1, 2].map((i) => Object.entries(h.deviations).filter(([, who]) => who === i).map(([f]) => HOTSPOTS[t][f]));
+}

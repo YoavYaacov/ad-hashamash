@@ -39,6 +39,16 @@ describe('trial content is self-consistent', () => {
     expect(t.scoring).toEqual({ method: 'fixed', points: 300 });
   });
 
+  it('pictures: reveal circles = changed details; the answer has the most circles', () => {
+    const t = task('demo-pictures');
+    t.answer_key.items.forEach((it: any) => {
+      const counts = it.marks.map((m: unknown[]) => m.length);
+      expect(counts[['א', 'ב', 'ג'].indexOf(it.choice)]).toBe(Math.max(...counts));
+      expect(counts.filter((c: number) => c === Math.max(...counts))).toHaveLength(1);
+    });
+    expect(t.public_content.heats.every((h: any) => !('marks' in h))).toBe(true);   // never before the reveal
+  });
+
   it('memory: six new sequences of 3..8, 3.5 s per symbol, 20 s recall, 25..75 = 300', () => {
     const t = task('demo-memory');
     const stages = t.answer_key.stages as string[][];

@@ -277,12 +277,15 @@ export function isWide(s: SceneSpec): boolean {
   return s.type === 'kitchen' || s.type === 'street' || !!(s as RoomSpec).wide;
 }
 
-export function Scene({ s, label, crop }: { s: SceneSpec; label?: string; crop?: { col: number; row: number } }) {
+export function Scene({ s, label, crop, marks }: { s: SceneSpec; label?: string; crop?: { col: number; row: number }; marks?: { x: number; y: number; rx: number; ry: number }[] }) {
   const wide = isWide(s);
   const vb = crop ? `${50 + crop.col * 100} ${crop.row * 100} 100 100` : wide ? '0 0 480 180' : '0 0 400 300';
   return (
     <svg viewBox={vb} className="scene" role="img" aria-label={label ?? 'תמונה'} preserveAspectRatio="xMidYMid slice">
       <SceneContent s={s} />
+      {marks?.map((m, i) => (
+        <ellipse key={i} className="diff-mark" cx={m.x} cy={m.y} rx={m.rx} ry={m.ry} pathLength={100} style={{ '--k': i } as React.CSSProperties} />
+      ))}
     </svg>
   );
 }

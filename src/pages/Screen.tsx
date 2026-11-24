@@ -335,7 +335,13 @@ function Solution({ s }: { s: PublicState }) {
             <div key={i} className="heat-sol" style={{ '--i': i } as React.CSSProperties}>
               {(c.heats?.[i]?.pictures ?? []).map((p: SceneSpec, j: number) => {
                 const letter = ['א', 'ב', 'ג'][j];
-                return <figure key={j} className={letter === it.choice ? 'win' : ''}><Scene s={p} /><figcaption>{letter}</figcaption></figure>;
+                const n = it.marks?.[j]?.length ?? 0;
+                return (
+                  <figure key={j} className={letter === it.choice ? 'win' : ''} style={{ '--h': i } as React.CSSProperties}>
+                    <Scene s={p} marks={it.marks?.[j]} />
+                    <figcaption>{letter}{it.marks && <span className="diff-count">{n}</span>}</figcaption>
+                  </figure>
+                );
               })}
             </div>
           ))}

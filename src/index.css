@@ -751,3 +751,20 @@ button.mem-symbol:active { transform: scale(.92); border-color: var(--gold); bac
 .vault-cards.big .vault-card p { font-size: 1.45em; }
 .vault-cards.big .corner-letter { font-size: 1.1em; width: 1.6em; height: 1.6em; bottom: 1cqh; left: 1cqw; }
 .vault-screen { display: flex; align-items: center; justify-content: center; gap: 3cqw; }
+
+/* Final reveal of the three pictures: every changed detail gets a hand-drawn circle, then the count */
+.diff-mark { fill: none; stroke: #ff5a5f; stroke-width: 4; stroke-linecap: round; stroke-dasharray: 100; stroke-dashoffset: 100;
+  filter: drop-shadow(0 0 3px rgba(255,90,95,.7)); animation: draw-mark .7s ease-out forwards; animation-delay: calc(var(--h, 0) * .35s + 1s + var(--k) * .35s); }
+.heat-sol figure { opacity: 1; transform: none; }
+.heat-sol figure .diff-mark { animation-delay: calc(var(--h) * .35s + 1s + var(--k) * .35s); }
+@keyframes draw-mark { to { stroke-dashoffset: 0; } }
+.diff-count { position: absolute; bottom: .4cqh; inset-inline-end: .6cqw; min-width: 1.5em; height: 1.5em; display: grid; place-items: center; border-radius: 50%;
+  background: #ff5a5f; color: #fff; font-size: 1.1em; animation: pop .5s cubic-bezier(.2,1.4,.4,1) both; animation-delay: calc(var(--h) * .35s + 2.4s); }
+.heat-sol figure.win { animation: win-glow 1s ease both; animation-delay: calc(var(--h) * .35s + 3s); }
+.heat-sol { grid-template-columns: repeat(3, 24cqw); gap: 1.4cqw; }
+.pic-solution { gap: 1.2cqh; }
+.heat-sol figure { display: grid; gap: .3cqh; justify-items: center; }
+.heat-sol figcaption { position: static; width: auto; height: auto; background: none; color: var(--gold-soft); font-size: 1.05em; border-radius: 0; }
+.heat-sol .diff-count { bottom: auto; top: .5cqh; inset-inline-end: auto; inset-inline-start: .5cqw; }
+.heat-sol figcaption { display: flex; align-items: center; gap: .5em; }
+.heat-sol .diff-count { position: static; font-size: .9em; }

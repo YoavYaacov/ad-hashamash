@@ -27,7 +27,7 @@ on conflict (id) do update set idea_no = excluded.idea_no, kind = excluded.kind,
 
 insert into private.task_secrets (task_id, answer_key, verified_note) values
 ('demo-sprint', '{"kind":"sprint","items":[{"choice":"אנטיוכוס"},{"choice":"ש׳"},{"choice":"הנר השישי"},{"choice":"30"},{"choice":"מסכת שבת בתלמוד"}]}', 'trial content'),
-('demo-pictures', '{"kind":"three_pictures","items":[{"choice":"ב"},{"choice":"א"},{"choice":"ג"}]}', 'trial content'),
+('demo-pictures', '{"kind":"three_pictures","items":[{"choice":"ב","marks":[[{"x":170,"y":103,"rx":40,"ry":17}],[{"x":410,"y":99,"rx":16,"ry":13},{"x":422,"y":52,"rx":50,"ry":46},{"x":64,"y":126,"rx":34,"ry":22}],[{"x":267,"y":58,"rx":14,"ry":16}]]},{"choice":"א","marks":[[{"x":428,"y":105,"rx":22,"ry":26},{"x":261,"y":113,"rx":72,"ry":20},{"x":250,"y":38,"rx":30,"ry":30}],[{"x":73,"y":52,"rx":50,"ry":26}],[{"x":428,"y":37,"rx":22,"ry":15},{"x":153,"y":116,"rx":32,"ry":18}]]},{"choice":"ג","marks":[[{"x":70,"y":46,"rx":34,"ry":28},{"x":440,"y":34,"rx":24,"ry":24}],[{"x":400,"y":90,"rx":40,"ry":42}],[{"x":266,"y":120,"rx":24,"ry":34},{"x":207,"y":94,"rx":26,"ry":18},{"x":345,"y":128,"rx":22,"ry":24}]]}]}', 'trial content'),
 ('demo-vault', '{"kind":"code_vault","code":"4721"}', 'trial content'),
 ('demo-memory', '{"kind":"sequence_memory","stages":[["dreidel","sufganiya","candle"],["coin","menorah","latke","dreidel"],["oil_jar","candle","coin","sufganiya","menorah"],["latke","dreidel","oil_jar","candle","latke","coin"],["menorah","coin","sufganiya","dreidel","oil_jar","candle","sufganiya"],["candle","latke","menorah","oil_jar","coin","dreidel","latke","sufganiya"]]}', 'trial content'),
 ('demo-truth', '{"kind":"truth_or_fiction","items":[{"choice":"3"},{"choice":"1"},{"choice":"4"}]}', 'trial content'),

@@ -5,7 +5,7 @@
  *
  * The final game content will be entered straight into the database, never into this public repo.
  */
-import { buildPictures, heatAnswer, HEATS, PUZZLE_SCENE } from './scenes';
+import { buildPictures, heatAnswer, heatMarks, HEATS, PUZZLE_SCENE } from './scenes';
 import { memoryTotalMs } from '../../supabase/functions/_shared/engine/memory.ts';
 
 const LETTERS = ['א', 'ב', 'ג'];
@@ -74,7 +74,7 @@ export const TASKS: TaskDef[] = [
     public_content: { ask: 'בכל שלישיית תמונות, יש פריטים שעברו שינוי בתמונה אחת לעומת השתיים האחרות.\nבאיזו תמונה יש הכי הרבה פרטים כאלה?',
                       heats: HEATS.map((h) => ({ title: h.title, pictures: buildPictures(h) })), choices: LETTERS },
     duration_sec: 150, scoring: { method: 'per_item', points: 100 }, attempts_limit: 1, settings: {},
-    answer_key: { kind: 'three_pictures', items: HEATS.map((h) => ({ choice: LETTERS[heatAnswer(h)] })) },
+    answer_key: { kind: 'three_pictures', items: HEATS.map((h) => ({ choice: LETTERS[heatAnswer(h)], marks: heatMarks(h) })) },
   },
   {
     id: 'demo-vault', idea_no: 4, kind: 'code_vault', title: 'הכספת החשמונאית',
