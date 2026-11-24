@@ -196,13 +196,13 @@ function InGame({ s, team, offset, onChange }: { s: PublicState; team: TeamState
     <div className="in-round" key={`${r.no}-${r.phase}`}>
       <div className="round-top">
         <div className="round-chip">{roundLabel} · {r.title}</div>
-        {(r.phase === 'open' || r.phase === 'paused') && <Timer endsAt={r.ends_at} pausedMs={r.paused_remaining_ms} offset={offset} total={r.duration_sec} />}
+        {(r.phase === 'open' || r.phase === 'paused') && r.kind !== 'sequence_memory' && <Timer endsAt={r.ends_at} pausedMs={r.paused_remaining_ms} offset={offset} total={r.duration_sec} />}
       </div>
       {r.phase === 'open' && isFinalist && ask && r.kind !== 'sprint' && <p className="ask">{ask}</p>}
       {!isFinalist ? <p className="center-msg">הגמר! צפו במסך</p>
         : r.phase === 'intro' ? <div className="instructions-card enter"><p>{r.instructions}</p><div className="waiting-dots" aria-hidden="true"><i /><i /><i /></div></div>
         : r.phase === 'paused' ? <p className="center-msg">הפסקה קצרה. התשובות שמורות.</p>
-        : live ? <TaskInput client={client} s={s} team={team} onChange={onChange} />
+        : live ? <TaskInput client={client} s={s} team={team} onChange={onChange} offset={offset} />
         : r.phase === 'closed' || r.phase === 'graded' ? <div className="center-msg"><h3>הזמן נגמר</h3><div className="waiting-dots" aria-hidden="true"><i /><i /><i /></div></div>
         : <div className="center-msg look-up"><h3>הפתרון על המסך</h3></div>}
       {showScore && <ScoreCard score={score!} />}

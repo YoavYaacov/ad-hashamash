@@ -110,7 +110,7 @@ export function remainingMs(endsAt: string | null, pausedMs: number | null, offs
   return Math.max(0, Date.parse(endsAt) - (Date.now() + offset));
 }
 
-export const AUTO_STANDINGS_MS = 15_000;
+export const AUTO_STANDINGS_MS = 8_000;
 
 /** True once the automatic "solution → top-5 table" switch is due (server time based). */
 export function useAutoStandings(round: { phase: string; revealed_at: string | null; pin_solution: boolean } | null | undefined, offset: number) {

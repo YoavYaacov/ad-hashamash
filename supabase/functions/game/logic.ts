@@ -12,13 +12,16 @@ export interface Scoring {
   points?: number;
   /** time_linear: points × max(minRatio, 1 − elapsed/duration). PROPOSAL — not approved. */
   minRatio?: number;
+  /** per_stage: points for stage i (approved for candle memory: 25, 35, 45, 55, 65, 75). */
+  points_by_stage?: number[];
 }
 
-export function pointsFor(scoring: Scoring, grade: ItemGrade, elapsedMs?: number, durationMs?: number): number {
+export function pointsFor(scoring: Scoring, grade: ItemGrade, elapsedMs?: number, durationMs?: number, itemIndex = 0): number {
   if (grade.needsReview) return 0;
   const p = scoring.points ?? 0;
   switch (scoring.method) {
-    case 'fixed': case 'per_stage': return grade.correct ? p : 0;
+    case 'fixed': return grade.correct ? p : 0;
+    case 'per_stage': return grade.correct ? (scoring.points_by_stage?.[itemIndex] ?? p) : 0;
     case 'per_item': case 'partial': return Math.round(p * grade.ratio);
     case 'time_linear': {
       if (!grade.correct || elapsedMs === undefined || !durationMs) return 0;

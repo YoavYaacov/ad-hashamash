@@ -17,3 +17,4 @@ $PSQL -f "$ROOT/tests/db/supabase_stub.sql"
 for f in "$ROOT"/supabase/migrations/*.sql; do echo "migrate: $(basename "$f")"; $PSQL -f "$f"; done
 $PSQL -f "$ROOT/supabase/seed/demo_seed.sql"
 $PSQL -f "$ROOT/tests/db/scenario.sql" 2>&1 | sed 's/^psql:[^ ]* NOTICE:  /  /'
+$PSQL -f "$ROOT/tests/db/memory.sql" 2>&1 | sed 's/^psql:[^ ]* NOTICE:  /  /'

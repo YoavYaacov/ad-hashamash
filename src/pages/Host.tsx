@@ -3,6 +3,8 @@
  * Reads full data via RLS (hosts only), acts only through RPCs / the Edge Function.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useMemoryClock } from '../lib/memory';
+import type { MemoryNow } from '../../supabase/functions/_shared/engine/memory.ts';
 import type { Session } from '@supabase/supabase-js';
 import { useClient } from '../lib/clientContext';
 import { usePublicState, useServerClock, useAutoStandings, useTick } from '../lib/hooks';
@@ -128,8 +130,9 @@ function Console() {
   const autoDone = useRef(new Set<string>());
   const lastGrade = useRef(0);
   const activeTeams = teams.filter((t) => t.status === 'active');
-  const allDone = !!r && activeTeams.length > 0 && activeTeams.every((t) => teamFinished(r, subs.filter((x) => x.team_id === t.id && x.status !== 'late')));
-  const doneCount = r ? activeTeams.filter((t) => teamFinished(r, subs.filter((x) => x.team_id === t.id && x.status !== 'late'))).length : 0;
+  const memNow = useMemoryClock(r?.kind === 'sequence_memory' ? r : null, offset);
+  const allDone = !!r && activeTeams.length > 0 && activeTeams.every((t) => teamFinished(r, subs.filter((x) => x.team_id === t.id && x.status !== 'late'), memNow));
+  const doneCount = r ? activeTeams.filter((t) => teamFinished(r, subs.filter((x) => x.team_id === t.id && x.status !== 'late'), memNow)).length : 0;
   const [autoNote, setAutoNote] = useState('');
   useEffect(() => {
     if (!inst || !r || inst.status !== 'in_progress' || busy) return;
@@ -224,7 +227,7 @@ function Console() {
                 <p className="auto-note">{autoNote || `${doneCount}/${activeTeams.length} סיימו · נסגר לבד בסוף הזמן`}</p>
                 <div className="row">
                   {r.phase === 'open'
-                    ? <button className="grow" disabled={busy} onClick={() => act(() => rpc('host_round_action', { p_instance: inst.id, p_round: r.no, p_action: 'pause' }))}>השהיה</button>
+                    ? (r.kind !== 'sequence_memory' && <button className="grow" disabled={busy} onClick={() => act(() => rpc('host_round_action', { p_instance: inst.id, p_round: r.no, p_action: 'pause' }))}>השהיה</button>)
                     : <button className="grow primary" disabled={busy} onClick={() => act(() => rpc('host_round_action', { p_instance: inst.id, p_round: r.no, p_action: 'resume' }))}>המשך</button>}
                   <button className="grow ghost" disabled={busy} onClick={() => act(() => rpc('host_round_action', { p_instance: inst.id, p_round: r.no, p_action: 'close' }))}>סגירה עכשיו</button>
                 </div>
@@ -309,7 +312,7 @@ function Console() {
   );
 }
 
-/** After a reveal the screen switches to the top-5 table by itself after 15 s; the host can keep the solution or jump now. */
+/** After a reveal the screen switches to the top-5 table by itself after 8 s; the host can keep the solution or jump now. */
 function StandingsControl({ inst, r, offset, onShow, onPin }: { inst: { screen_view: string }; r: { phase: string; revealed_at: string | null; pin_solution: boolean }; offset: number; onShow: () => void; onPin: () => void }) {
   useTick(500);
   const { show, due } = useAutoStandings(r, offset);
@@ -399,7 +402,16 @@ function ResetButton({ instanceId, onDone, onError }: { instanceId: string; onDo
 }
 
 /** Has this team finished the round? (used to close the round early when everyone is done) */
-function teamFinished(r: { kind: string; item_count: number }, mine: Sub[]): boolean {
+function teamFinished(r: { kind: string; item_count: number }, mine: Sub[], mem?: MemoryNow | null): boolean {
+  if (r.kind === 'sequence_memory' && mem) {
+    if (mem.phase === 'result') return false;                         // let the stage result show first
+    const closed = mem.phase === 'done' ? mem.stage : mem.stage - 1;   // stages whose recall window has ended
+    for (let k = 0; k <= closed; k++) {
+      const x = mine.find((y) => y.item_index === k);
+      if (!x || (x.ratio != null && Number(x.ratio) < 1)) return true;  // missed or failed → out
+    }
+    return closed >= r.item_count - 1;
+  }
   if (mine.length === 0) return false;
   const solved = mine.some((x) => Number(x.ratio) === 1);
   switch (r.kind) {

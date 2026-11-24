@@ -15,6 +15,8 @@ import { Scene } from '../components/Scene';
 import { Swap } from '../components/Swap';
 import { Character, MenorahVariant } from '../components/BetArt';
 import { askFor } from '../content/asks';
+import { MemorySymbol } from '../components/MemoryArt';
+import { useMemoryClock, useStageData } from '../lib/memory';
 import { VaultClues } from '../components/VaultClues';
 import { SafeArt } from '../components/Safe';
 import { StakeLines } from '../components/BetStakes';
@@ -164,7 +166,7 @@ function RoundView({ s, offset }: { s: PublicState; offset: number }) {
           <h2 className="round-title">{r.title}</h2>
           {['open', 'paused'].includes(r.phase) && askFor(r.kind, r.content) && <p className="round-ask">{askFor(r.kind, r.content)}</p>}
         </div>
-        {(r.phase === 'open' || r.phase === 'paused') && <Timer endsAt={r.ends_at} pausedMs={r.paused_remaining_ms} offset={offset} total={r.duration_sec} big />}
+        {(r.phase === 'open' || r.phase === 'paused') && r.kind !== 'sequence_memory' && <Timer endsAt={r.ends_at} pausedMs={r.paused_remaining_ms} offset={offset} total={r.duration_sec} big />}
       </header>
 
       <main className="round-main">
@@ -172,13 +174,13 @@ function RoundView({ s, offset }: { s: PublicState; offset: number }) {
         {r.phase === 'intro' && <p className="instructions">{r.instructions}</p>}
         {r.phase === 'betting' && <BetBoard s={s} />}
         {r.phase === 'bets_locked' && <div className="big-msg">ההימורים ננעלו</div>}
-        {(r.phase === 'open' || r.phase === 'paused') && <ScreenContent s={s} />}
+        {(r.phase === 'open' || r.phase === 'paused') && (r.kind === 'sequence_memory' ? <MemoryScreen s={s} offset={offset} /> : <ScreenContent s={s} />)}
         {(r.phase === 'closed' || r.phase === 'graded') && <div className="big-msg">הזמן נגמר<div className="waiting-dots" aria-hidden="true"><i /><i /><i /></div></div>}
         {(r.phase === 'revealed' || r.phase === 'done') && <Solution s={s} />}
         </Swap>
       </main>
 
-      {(r.phase === 'open' || r.phase === 'paused' || r.phase === 'closed') && (
+      {(r.phase === 'open' || r.phase === 'paused' || r.phase === 'closed') && r.kind !== 'sequence_memory' && (
         <footer className="progress">
           <div className="progress-bar"><div style={{ width: `${(100 * progress.submitted_teams) / Math.max(1, progress.total_teams)}%` }} /></div>
           <span>{progress.submitted_teams} / {progress.total_teams} קבוצות שלחו</span>
@@ -189,6 +191,41 @@ function RoundView({ s, offset }: { s: PublicState; offset: number }) {
 }
 
 /** What the audience sees while a task runs. Per-phone tasks show only a status, never answers. */
+/** Candle memory on the projector: same shared timeline as the phones. */
+function MemoryScreen({ s, offset }: { s: PublicState; offset: number }) {
+  const client = useClient('screen');
+  const r = s.round!;
+  const c = r.content ?? {};
+  const now = useMemoryClock(r, offset);
+  const stage = now?.stage ?? 0, phase = now?.phase ?? 'intro';
+  const data = useStageData(client, s.instance.id, stage, phase !== 'intro', phase === 'result');
+  const total = (c.stage_lengths ?? []).length;
+  if (!now) return null;
+  let body: React.ReactNode;
+  if (phase === 'intro') body = <div className="mem-screen-intro"><span>שלב</span><b>{stage + 1}</b><small>מתוך {total}</small></div>;
+  else if (phase === 'show') body = data.sequence ? <div className="mem-screen-symbol"><MemorySymbol id={data.sequence[now.symbol]} size={300} /></div> : null;
+  else if (phase === 'recall') {
+    const recall = c.timing?.recall_ms ?? 20000, sec = Math.ceil(now.msLeft / 1000);
+    body = (
+      <div className="mem-screen-recall">
+        <svg viewBox="0 0 120 120" className="mem-ring" aria-hidden="true">
+          <circle cx="60" cy="60" r="52" className="track" />
+          <circle cx="60" cy="60" r="52" className="fill" style={{ strokeDasharray: 327, strokeDashoffset: 327 * (1 - now.msLeft / recall) }} />
+        </svg>
+        <b className="mem-sec">{sec}</b>
+        <span>משחזרים בטלפון</span>
+      </div>
+    );
+  } else if (phase === 'result') body = (
+    <div className="mem-screen-result">
+      <div className="mem-seq">{(data.sequence ?? []).map((id, i) => <span key={i} style={{ '--i': i } as React.CSSProperties}><MemorySymbol id={id} size={110} /></span>)}</div>
+      {data.passed !== undefined && <p className="mem-left">{data.passed === 0 ? 'אף נציג לא עבר' : `${data.passed} נציגים ממשיכים`}</p>}
+    </div>
+  );
+  else body = <div className="big-msg">סוף הסבב</div>;
+  return <Swap k={`${stage}-${phase}-${phase === 'show' ? now.symbol : ''}`} className="mem-swap" outMs={280}>{body}</Swap>;
+}
+
 function ScreenContent({ s }: { s: PublicState }) {
   const r = s.round!;
   const c = r.content ?? {};
@@ -340,23 +377,40 @@ function useRanked(s: PublicState) {
 }
 
 /** Top 5 only. Each team sees its own exact place on its phone. */
+/** Number that counts up when it appears. */
+function CountUp({ to, ms = 1400, delay = 0 }: { to: number; ms?: number; delay?: number }) {
+  const [v, setV] = useState(0);
+  useEffect(() => {
+    let raf = 0; const t0 = performance.now() + delay;
+    const step = (t: number) => {
+      const p = Math.min(1, Math.max(0, (t - t0) / ms));
+      setV(Math.round(to * (1 - Math.pow(1 - p, 3))));
+      if (p < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [to, ms, delay]);
+  return <>{v.toLocaleString('he-IL')}</>;
+}
+
+/** Top 5, big and centred: rows rise from the bottom (5 → 1), bars grow, points count up, the leader glows. */
 function Standings({ s }: { s: PublicState }) {
   const ranked = useRanked(s);
   const max = Math.max(1, ...ranked.map((r) => r.total));
+  const n = ranked.length;
   return (
     <div className="standings top5">
-      <h2 className="enter">חמש המובילות</h2>
-      <div className="standings-list">
+      <h2 className="top5-title">חמש המובילות</h2>
+      <div className="top5-list">
         {ranked.map((r, i) => (
-          <div key={r.team_id} className="standing-row" style={{ '--c': r.team?.color, '--i': ranked.length - 1 - i } as React.CSSProperties}>
+          <div key={r.team_id} className={`top5-row ${r.rank === 1 ? 'leader' : ''}`} style={{ '--c': r.team?.color, '--i': n - 1 - i } as React.CSSProperties}>
             <span className="rank">{r.rank}</span>
             <span className="name">{r.team?.name}</span>
             <span className="bar"><span style={{ width: `${(100 * r.total) / max}%` }} /></span>
-            <span className="pts">{r.total.toLocaleString('he-IL')}</span>
+            <span className="pts"><CountUp to={r.total} delay={(n - 1 - i) * 220 + 300} /></span>
           </div>
         ))}
       </div>
-      <p className="hint enter-slow" style={{ animationDelay: '1.5s' }}>המקום שלכם בטלפון</p>
     </div>
   );
 }
@@ -394,27 +448,34 @@ function Confetti() {
   );
 }
 
+/** The podium: places 1–3, team name big, its players underneath. Built up 3 → 2 → 1, then celebration. */
 function FinalResults({ s }: { s: PublicState }) {
   const ranked = useRanked(s);
-  const champ = ranked.filter((r) => r.rank === 1);
+  const top = ranked.slice(0, 3);
+  const slot = (place: number) => top[place - 1];
+  const order = [2, 1, 3];                               // classic podium, left to right
+  const delayOf: Record<number, number> = { 3: 0.6, 2: 1.8, 1: 3.2 };
   return (
-    <div className="final-results">
-      <Menorah lit={8} shamashLit size={300} />
-      <div className="champion-label enter">{champ.length > 1 ? 'האלופות' : 'האלופה'}</div>
-      <h1 className="champion" style={{ animation: 'pop-name 1.4s cubic-bezier(.2,1.4,.4,1) .4s both' }}>{champ.map((c) => c.team?.name).join(' · ')}</h1>
-      {champ.some((c) => c.members?.length) && (
-        <div className="champ-members">
-          {champ.flatMap((c) => c.members ?? []).map((m: string, i: number) => <span key={i} style={{ '--i': i } as React.CSSProperties}>{m}</span>)}
-        </div>
-      )}
-      <div className="podium stagger">
-        {ranked.filter((r) => r.rank > 1).slice(0, 4).map((r, i) => (
-          <div key={r.team_id} className="podium-row" style={{ '--i': i + 6 } as React.CSSProperties}>
-            <span className="rk">{r.rank}</span>
-            <span className="nm">{r.team?.name}{r.members?.length ? <small>{r.members.join(' · ')}</small> : null}</span>
-            <span className="pt">{r.total.toLocaleString('he-IL')}</span>
-          </div>
-        ))}
+    <div className="final-results podium-stage">
+      <div className="podium-glow" aria-hidden="true" />
+      <div className="podium-head">
+        <Menorah lit={8} shamashLit size={120} />
+      </div>
+      <div className="podium3" dir="ltr">
+        {order.map((place) => {
+          const r = slot(place);
+          if (!r) return <div key={place} className="pod-col empty" />;
+          return (
+            <div key={place} className={`pod-col p${place}`} style={{ '--d': `${delayOf[place]}s` } as React.CSSProperties}>
+              <div className="pod-team" dir="rtl">
+                <div className="pod-name">{r.team?.name}</div>
+                {r.members?.length ? <div className="pod-members">{r.members.map((m: string, i: number) => <span key={i}>{m}</span>)}</div> : null}
+                <div className="pod-pts"><CountUp to={r.total} delay={delayOf[place] * 1000 + 500} /></div>
+              </div>
+              <div className="pod-block"><span>{r.rank}</span></div>
+            </div>
+          );
+        })}
       </div>
       <Confetti />
     </div>

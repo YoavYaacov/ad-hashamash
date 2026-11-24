@@ -7,6 +7,7 @@
 import content from './content.json';
 import type { AnswerKey } from '../../supabase/functions/_shared/engine/tasks.ts';
 import { moveTile, neighbors, isSolved, type Board } from '../../supabase/functions/_shared/engine/slidingPuzzle.ts';
+import { memoryWindows, memoryNow } from '../../supabase/functions/_shared/engine/memory.ts';
 import { computeFinals, finalsPlacements, finalsScoreEvents, gradeSubmission, pointsFor, settleBets, type Scoring } from '../../supabase/functions/game/logic.ts';
 
 type Json = any; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -126,6 +127,17 @@ export class MockServer {
         const r = this.round(this.inst.current_round);
         return { round: r.round_no, submitted_teams: new Set(this.subs.filter((s) => s.round_no === r.round_no && s.status !== 'late').map((s) => s.team_id)).size,
                  total_teams: r.round_no === 9 ? (r.finalists?.length ?? 0) : this.activeTeams().length };
+      }
+      case 'memory_stage': {
+        const r = this.round(this.inst?.current_round ?? null), tt = r && this.task(r);
+        if (!r || !tt || tt.kind !== 'sequence_memory' || !r.opened_at) fail('not_memory_round');
+        const w = memoryWindows(r!.public_payload.stage_lengths, tt!.settings.memory)[a.p_stage] ?? fail('bad_stage');
+        const el = Date.now() - Date.parse(r!.opened_at!);
+        if (el < w.showAt - 400 && r!.phase === 'open') fail('too_early');
+        const out: Json = { stage: a.p_stage, sequence: (this.secrets[r!.task_id] as Json).stages[a.p_stage] };
+        if (el >= w.recallEnd + 1000 || r!.phase !== 'open')
+          out.passed = this.subs.filter((x) => x.round_no === r!.round_no && x.item_index === a.p_stage && x.status === 'graded' && x.ratio === 1).length;
+        return out;
       }
       case 'host_create_instance': {
         this.requireHost(uid);
@@ -317,7 +329,7 @@ export class MockServer {
         const s = this.subs.find((x) => x.id === body.submission_id) ?? fail('submission_not_found');
         const r = this.round(s.round_no), tt = this.task(r);
         const g = { ratio: body.accept ? 1 : 0, correct: !!body.accept, needsReview: false };
-        this.applyGrade(s, g, pointsFor(tt.scoring, g, Date.parse(s.received_at) - Date.parse(r.opened_at!), tt.duration_sec * 1000));
+        this.applyGrade(s, g, pointsFor(tt.scoring, g, Date.parse(s.received_at) - Date.parse(r.opened_at!), tt.duration_sec * 1000, s.item_index));
         return { ok: true };
       }
       case 'compute_finals': {
@@ -346,7 +358,7 @@ export class MockServer {
     if (r.phase === 'paused') fail('round_paused');
     if (!['open', 'closed'].includes(r.phase)) fail('round_not_open');
     const now = Date.now();
-    const late = !r.ends_at || now > Date.parse(r.ends_at) + GRACE_MS;
+    let late = !r.ends_at || now > Date.parse(r.ends_at) + GRACE_MS;
     const mine = this.subs.filter((s) => s.team_id === d.team_id && s.round_no === r.round_no);
     if (mine.some((s) => s.item_index === item && s.status === 'graded' && s.ratio === 1)) fail('already_solved');
     const attempts = mine.filter((s) => s.item_index === item && s.status !== 'late').length;
@@ -354,12 +366,18 @@ export class MockServer {
     if (attempts >= limit) fail('no_attempts_left');
     if (tt.settings.sequential && item !== new Set(mine.filter((s) => s.status !== 'late').map((s) => s.item_index)).size) fail('item_locked_or_out_of_order');
     if (tt.settings.eliminate_on_fail && mine.some((s) => s.status === 'graded' && (s.ratio ?? 0) < 1)) fail('eliminated');
+    if (tt.kind === 'sequence_memory' && r.opened_at && r.public_payload?.stage_lengths) {   // mirrors the SQL trigger
+      const w = memoryWindows(r.public_payload.stage_lengths, tt.settings.memory)[item];
+      const el = now - Date.parse(r.opened_at);
+      if (el < w.recallAt - 1000) fail('stage_not_open');
+      if (el > w.recallEnd + GRACE_MS) late = true;
+    }
     const s: Sub = { id: this.seq++, round_no: r.round_no, team_id: d.team_id, item_index: item, attempt_no: attempts + 1, payload, submitted_by: uid,
                      client_request_id: requestId, received_at: new Date(now).toISOString(), status: late ? 'late' : 'received', grade: null, ratio: null };
     this.subs.push(s);
     if (late) return { received: true, status: 'late', attempt_no: s.attempt_no };
     const g = gradeSubmission(this.secrets[r.task_id], item, payload);
-    this.applyGrade(s, g, pointsFor(tt.scoring, g, now - Date.parse(r.opened_at!), tt.duration_sec * 1000));
+    this.applyGrade(s, g, pointsFor(tt.scoring, g, now - Date.parse(r.opened_at!), tt.duration_sec * 1000, item));
     const instant = tt.settings.instant_feedback === true;
     return { received: true, status: g.needsReview ? 'needs_review' : 'graded', attempt_no: s.attempt_no,
              correct: instant ? g.correct : undefined, attempts_left: instant ? Math.max(0, limit - s.attempt_no) : undefined };
@@ -405,6 +423,14 @@ export class MockServer {
     for (let k = 0; k < n; k++) this.register(`bot-${uuid()}`, people[(this.teams.length + k) % people.length], true);
   }
 
+  /** In the memory round the bots answer each stage by themselves while its recall window is open. */
+  readonly memoryBotTimer = typeof setInterval === 'function' ? setInterval(() => {
+    const r = this.round(this.inst?.current_round ?? null);
+    if (!r || r.phase !== 'open' || this.task(r).kind !== 'sequence_memory' || !r.opened_at) return;
+    const m = memoryNow(r.public_payload.stage_lengths, Date.now() - Date.parse(r.opened_at), this.task(r).settings.memory);
+    if (m.phase === 'recall' && m.msLeft < 15000) this.botsPlay();
+  }, 2000) : null;
+
   /** Every bot team answers the current round (≈65% correct). */
   botsPlay() {
     const r = this.round(this.inst?.current_round ?? null);
@@ -415,6 +441,11 @@ export class MockServer {
       if (r.phase === 'betting') { try { this.rpc(uid, 'team_place_bet', { p_track: ['safe', 'mid', 'all'][Math.floor(Math.random() * 3)] }); } catch { /* ignore */ } continue; }
       if (r.phase !== 'open') continue;
       if (r.round_no === 9 && !r.finalists?.includes(t.id)) continue;
+      if (tt.kind === 'sequence_memory') {
+        const m = memoryNow(r.public_payload.stage_lengths, Date.now() - Date.parse(r.opened_at!), tt.settings.memory);
+        if (m.phase === 'recall') { try { this.submit(uid, m.stage, botPayload(tt.kind, key, m.stage, Math.random() < 0.8), uuid()); } catch { /* out or done */ } }
+        continue;
+      }
       for (let i = 0; i < r.item_count; i++) {
         const ok = Math.random() < 0.65;
         try { this.submit(uid, i, botPayload(tt.kind, key, i, ok), uuid()); } catch { break; }

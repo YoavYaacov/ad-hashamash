@@ -6,6 +6,7 @@
  * The final game content will be entered straight into the database, never into this public repo.
  */
 import { buildPictures, heatAnswer, HEATS, PUZZLE_SCENE } from './scenes';
+import { memoryTotalMs } from '../../supabase/functions/_shared/engine/memory.ts';
 
 const LETTERS = ['א', 'ב', 'ג'];
 
@@ -25,60 +26,74 @@ const ORDER_ITEMS = [
 ];
 const ORDER_SHOWN = ['e', 'b', 'f', 'a', 'd', 'c'];
 
+// Candle memory (approved): six new, independent sequences of 3–8 symbols; repeats allowed.
+const MEMORY_SYMBOLS = ['candle', 'dreidel', 'sufganiya', 'oil_jar', 'menorah', 'coin', 'latke'];
 const MEMORY_STAGES = [
-  ['oil', 'dreidel', 'candle'],
-  ['jar', 'coin', 'menorah', 'oil'],
-  ['candle', 'sufganiya', 'dreidel', 'coin', 'jar'],
-  ['menorah', 'oil', 'jar', 'candle', 'coin', 'dreidel'],
-  ['coin', 'candle', 'oil', 'sufganiya', 'jar', 'dreidel', 'menorah'],
-  ['dreidel', 'jar', 'menorah', 'coin', 'oil', 'candle', 'sufganiya', 'jar'],
+  ['dreidel', 'sufganiya', 'candle'],
+  ['coin', 'menorah', 'latke', 'dreidel'],
+  ['oil_jar', 'candle', 'coin', 'sufganiya', 'menorah'],
+  ['latke', 'dreidel', 'oil_jar', 'candle', 'latke', 'coin'],
+  ['menorah', 'coin', 'sufganiya', 'dreidel', 'oil_jar', 'candle', 'sufganiya'],
+  ['candle', 'latke', 'menorah', 'oil_jar', 'coin', 'dreidel', 'latke', 'sufganiya'],
 ];
+const MEMORY_TIMING = { intro_ms: 3000, show_ms: 3500, recall_ms: 20000, result_ms: 6000 };
+const MEMORY_POINTS = [25, 35, 45, 55, 65, 75];
+
+// Vault (approved riddles). Cards are shown in this order (not the solution order).
+// The letter on each card is editable data; the code is derived: digits in dreidel order נ ג ה פ.
+const VAULT_ORDER = ['נ', 'ג', 'ה', 'פ'];
+const VAULT_CARDS = [
+  { text: 'כמה בנים היו לחנה בסיפור שבו בניה סירבו להיכנע לגזירות אנטיוכוס?', answer: 7, letter: 'ג' },
+  { text: 'איזה מספר מופיע בשיר "באנו חושך לגרש"?', answer: 1, letter: 'פ' },
+  { text: 'כמה אחים יש ליהודה המכבי?', answer: 4, letter: 'נ' },
+  { text: 'איזה בית מקדש טיהרו החשמונאים?', answer: 2, letter: 'ה' },
+];
+const VAULT_CODE = VAULT_ORDER.map((l) => VAULT_CARDS.find((c) => c.letter === l)!.answer).join('');
+
 
 export const TASKS: TaskDef[] = [
   {
-    id: 'demo-sprint', idea_no: 9, kind: 'sprint', title: 'המרוץ נגד השעון',
-    instructions: 'חמש שאלות, אחת אחרי השנייה. תשובה שנשלחה ננעלת, ואין חזרה אחורה.',
+    id: 'demo-sprint', idea_no: 9, kind: 'sprint', title: 'ספרינט טריוויה חנוכה',
+    instructions: 'חמש שאלות ברצף. תשובה שנבחרה ננעלת מיד, ואין חזרה לשאלות קודמות.',
     public_content: { questions: [
-      { text: 'מי היה המלך הסלווקי שגזר את הגזירות על היהודים?', options: ['אלכסנדר מוקדון', 'אנטיוכוס הרביעי', 'תלמי השני', 'פיליפוס'] },
-      { text: 'כמה נרות מדליקים בסך הכול בכל שמונת הלילות, כולל השמש?', options: ['36', '44', '45', '52'] },
-      { text: 'בארץ ישראל כתוב על הסביבון נ־ג־ה־פ. מה כתוב עליו בחוץ לארץ?', options: ['נ־ג־ה־ש', 'נ־ג־ש־פ', 'נ־ג־ה־מ', 'נ־ש־ה־פ'] },
-      { text: 'לפי המסורת, אילו מאכלים נוהגים לאכול בחנוכה לזכר יהודית?', options: ['מאכלי חלב וגבינה', 'דגים', 'תפוחים בדבש', 'אורז ועדשים'] },
-      { text: 'מה שמו של אבי החשמונאים, שפתח במרד במודיעין? (הקלידו)' },
+      { text: 'איך קראו למלך שגזר גזירות על היהודים בתקופת החשמונאים?', options: ['אלכסנדר מוקדון', 'אנטיוכוס', 'תלמי', 'הורדוס'] },
+      { text: 'איזו אות מופיעה על סביבון נפוץ בחו"ל במקום האות פ׳?', options: ['מ׳', 'כ׳', 'ש׳', 'ח׳'] },
+      { text: 'איזה נר חנוכה מדליקים בלילה שבו מתחיל ראש חודש טבת?', options: ['הנר הרביעי', 'הנר החמישי', 'הנר השישי', 'הנר השביעי'] },
+      { text: 'כמה נרות מדליקים בסך הכול בארבעת הלילות האחרונים של חנוכה, כולל השמשים, בחנוכייה אחת?', options: ['26', '28', '30', '32'] },
+      { text: 'באיזה מהמקורות הבאים מופיע סיפור נס פך השמן?', options: ['מגילת אסתר', 'מסכת שבת בתלמוד', 'ספר בראשית', 'פרקי אבות'] },
     ] },
     duration_sec: 100, scoring: { method: 'per_item', points: 60 }, attempts_limit: 1, settings: { sequential: true },
     answer_key: { kind: 'sprint', items: [
-      { choice: 'אנטיוכוס הרביעי' }, { choice: '44' }, { choice: 'נ־ג־ה־ש' }, { choice: 'מאכלי חלב וגבינה' },
-      { text: { canonical: 'מתתיהו', alternatives: ['מתתיה', 'מתתיהו הכהן', 'מתתיהו החשמונאי'], rejects: ['יהודה'] } },
+      { choice: 'אנטיוכוס' }, { choice: 'ש׳' }, { choice: 'הנר השישי' }, { choice: '30' }, { choice: 'מסכת שבת בתלמוד' },
     ] },
   },
   {
     id: 'demo-pictures', idea_no: 13, kind: 'three_pictures', title: 'שלוש התמונות',
-    instructions: 'בכל מקצה שלוש תמונות כמעט זהות. כל הבדל מופיע רק באחת מהן. מצאו את התמונה שיש בה הכי הרבה הבדלים משתי האחרות.',
-    public_content: { heats: HEATS.map((h) => ({ title: h.title, pictures: buildPictures(h) })), choices: LETTERS },
+    // Approved wording — keep exactly.
+    instructions: 'בכל שלישיית תמונות, יש פריטים שעברו שינוי בתמונה אחת לעומת השתיים האחרות.\nבאיזו תמונה יש הכי הרבה פרטים כאלה?',
+    public_content: { ask: 'בכל שלישיית תמונות, יש פריטים שעברו שינוי בתמונה אחת לעומת השתיים האחרות.\nבאיזו תמונה יש הכי הרבה פרטים כאלה?',
+                      heats: HEATS.map((h) => ({ title: h.title, pictures: buildPictures(h) })), choices: LETTERS },
     duration_sec: 150, scoring: { method: 'per_item', points: 100 }, attempts_limit: 1, settings: {},
     answer_key: { kind: 'three_pictures', items: HEATS.map((h) => ({ choice: LETTERS[heatAnswer(h)] })) },
   },
   {
     id: 'demo-vault', idea_no: 4, kind: 'code_vault', title: 'הכספת החשמונאית',
-    instructions: 'קוד של 4 ספרות. כל חידה נותנת ספרה אחת ומסומנת באות של הסביבון. מקלידים את הספרות לפי סדר האותיות במשפט שעל הסביבון. 3 ניסיונות.',
+    instructions: 'ארבע חידות. ארבע ספרות. קוד אחד.\nפתרו את ארבע החידות וגלו את הספרות שמסתתרות מאחורי הכרטיסים.\nהסביבון יגלה לכם את הסדר.\nיש לכם שלושה ניסיונות לפתוח את הכספת!',
     public_content: {
-      clues: [
-        { label: 'ה', text: 'כמה נרות מדליקים בסך הכול בלילה השני, השלישי והרביעי? (בלי השמש)' },
-        { label: 'פ', text: 'כמה בנים היו למתתיהו?' },
-        { label: 'נ', text: 'בלילה מסוים דולקות בחנוכייה 7 להבות, כולל השמש. איזה לילה זה?' },
-        { label: 'ג', text: 'בכמה מתוך שמונת הלילות דולק מספר זוגי של נרות? (בלי השמש)' },
-      ],
-      order_clue: 'לפי סדר האותיות במשפט שעל הסביבון.',
+      ask: 'ארבע חידות. ארבע ספרות. קוד אחד. הסביבון יגלה לכם את הסדר.',
+      clues: VAULT_CARDS.map((c) => ({ label: c.letter, text: c.text })),
     },
     duration_sec: 240, scoring: { method: 'fixed', points: 300 }, attempts_limit: 3, settings: { instant_feedback: true },
-    answer_key: { kind: 'code_vault', code: '6495' },
+    answer_key: { kind: 'code_vault', code: VAULT_CODE },
   },
   {
     id: 'demo-memory', idea_no: 35, kind: 'sequence_memory', title: 'זיכרון הנרות',
-    instructions: 'נציג אחד מכל קבוצה. צופים ברצף ומשחזרים אותו. בכל שלב הרצף מתארך, וטעות אחת מסיימת את הריצה.',
-    public_content: { symbols: ['oil', 'dreidel', 'candle', 'sufganiya', 'menorah', 'coin', 'jar'], show_ms_per_symbol: 900, stages: MEMORY_STAGES },
-    duration_sec: 300, scoring: { method: 'per_stage', points: 50 }, attempts_limit: 1,
-    settings: { sequential: true, eliminate_on_fail: true, instant_feedback: true },
+    instructions: 'מכל קבוצה עולה נציג אחד לבמה, עם הטלפון של הקבוצה.\nבכל שלב יוצג רצף של סמלי חנוכה. זכרו את הסדר!\nכשהרצף ייעלם, יהיו לכם 20 שניות לשחזר אותו בטלפון.\nהצלחתם? הרווחתם נקודות ועליתם לשלב הבא.\nטעיתם? אתם יוצאים מהמשחק, אבל שומרים את הנקודות שצברתם.\nשישה שלבים. כל שלב שווה יותר. טעות אחת — ואתם בחוץ!',
+    // Sequences are NOT public: each stage is released by memory_stage() only when it starts.
+    public_content: { symbols: MEMORY_SYMBOLS, stage_lengths: MEMORY_STAGES.map((x) => x.length), timing: MEMORY_TIMING, stage_points: MEMORY_POINTS },
+    duration_sec: Math.ceil(memoryTotalMs(MEMORY_STAGES.map((x) => x.length), MEMORY_TIMING) / 1000) + 2,
+    scoring: { method: 'per_stage', points: 25, points_by_stage: MEMORY_POINTS }, attempts_limit: 1,
+    settings: { sequential: true, eliminate_on_fail: true, instant_feedback: true, memory: MEMORY_TIMING },
     answer_key: { kind: 'sequence_memory', stages: MEMORY_STAGES },
   },
   {

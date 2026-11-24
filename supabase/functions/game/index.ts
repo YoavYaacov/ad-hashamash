@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
         const key = rec.answer_key as AnswerKey;
         const grade = gradeSubmission(key, sub.item_index, sub.payload as ItemSubmission);
         const elapsed = Date.parse(sub.received_at) - Date.parse(rec.task.opened_at);
-        const points = pointsFor(rec.task.scoring as Scoring, grade, elapsed, rec.task.duration_sec * 1000);
+        const points = pointsFor(rec.task.scoring as Scoring, grade, elapsed, rec.task.duration_sec * 1000, sub.item_index);
         await rpc('svc_apply_grade', { p_submission: sub.id, p_grade: grade, p_ratio: grade.ratio, p_points: points, p_needs_review: grade.needsReview });
         // Correctness is revealed to the phone only if the task allows instant feedback.
         const instant = rec.task.settings?.instant_feedback === true;
@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
         // Grade anything left ungraded (e.g. function hiccup mid-submit).
         for (const s of ctx.submissions.filter((x: any) => x.status === 'received')) {
           const g = gradeSubmission(key, s.item_index, s.payload);
-          const pts = pointsFor(ctx.task.scoring, g, Date.parse(s.received_at) - Date.parse(ctx.round.opened_at), ctx.task.duration_sec * 1000);
+          const pts = pointsFor(ctx.task.scoring, g, Date.parse(s.received_at) - Date.parse(ctx.round.opened_at), ctx.task.duration_sec * 1000, s.item_index);
           await rpc('svc_apply_grade', { p_submission: s.id, p_grade: g, p_ratio: g.ratio, p_points: pts, p_needs_review: g.needsReview });
         }
         const fresh = await rpc<any>('svc_round_context', { p_instance: instance, p_round: round });
@@ -115,7 +115,7 @@ Deno.serve(async (req) => {
         const ctx = await rpc<any>('svc_round_context', { p_instance: s.instance_id, p_round: s.round_no });
         const accept = body.accept === true;
         const g = { ratio: accept ? 1 : 0, correct: accept, needsReview: false, detail: { reviewed_by: uid } };
-        const pts = pointsFor(ctx.task.scoring, g, Date.parse(s.received_at) - Date.parse(ctx.round.opened_at), ctx.task.duration_sec * 1000);
+        const pts = pointsFor(ctx.task.scoring, g, Date.parse(s.received_at) - Date.parse(ctx.round.opened_at), ctx.task.duration_sec * 1000, s.item_index);
         await rpc('svc_apply_grade', { p_submission: s.id, p_grade: g, p_ratio: g.ratio, p_points: pts, p_needs_review: false });
         return json({ ok: true, points: pts });
       }

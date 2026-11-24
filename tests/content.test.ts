@@ -17,18 +17,39 @@ describe('trial content is self-consistent', () => {
     t.answer_key.items.forEach((it: any, i: number) => {
       if ('choice' in it) expect(t.public_content.questions[i].options).toContain(it.choice);
     });
-    expect(gradeItem(t.answer_key, 4, { text: 'מתתיה' }).correct).toBe(true);
-    expect(gradeItem(t.answer_key, 4, { text: 'יהודה' }).correct).toBe(false);
+    expect(t.public_content.questions).toHaveLength(5);
+    t.public_content.questions.forEach((q: any) => expect(q.options).toHaveLength(4));
+    expect(t.answer_key.items.map((x: any) => x.choice)).toEqual(['אנטיוכוס', 'ש׳', 'הנר השישי', '30', 'מסכת שבת בתלמוד']);
+    expect(5 + 6 + 7 + 8 + 4).toBe(30);                                       // last four nights + four shamashim
+    expect(t.duration_sec).toBe(100);
+    expect(t.scoring).toEqual({ method: 'per_item', points: 60 });
   });
 
-  it('vault riddles: ה=9, פ=5, נ=6, ג=4 → dreidel order נ-ג-ה-פ gives 6495', () => {
-    const he = 2 + 3 + 4;                                                    // nights 2,3,4
-    const pe = 5;                                                            // sons of Mattathias
-    const nun = [1, 2, 3, 4, 5, 6, 7, 8].find((n) => n + 1 === pe + 2)!;     // candles + shamash = 7
-    const gimel = [1, 2, 3, 4, 5, 6, 7, 8].filter((n) => n % 2 === 0).length; // even nights
+  it('vault: approved riddles 4, 7, 2, 1; letters are data; code follows נ-ג-ה-פ', () => {
     const t = task('demo-vault');
-    expect(t.public_content.clues.map((c: any) => c.label)).toEqual(['ה', 'פ', 'נ', 'ג']); // shown scrambled
-    expect([nun, gimel, he, pe].join('')).toBe(t.answer_key.code);
+    const clues = t.public_content.clues as { label: string; text: string }[];
+    expect(clues).toHaveLength(4);
+    expect(new Set(clues.map((c) => c.label))).toEqual(new Set(['נ', 'ג', 'ה', 'פ']));
+    const digit: Record<string, number> = {};
+    for (const c of clues) digit[c.label] = c.text.includes('חנה') ? 7 : c.text.includes('באנו') ? 1 : c.text.includes('אחים') ? 4 : 2;
+    expect(['נ', 'ג', 'ה', 'פ'].map((l) => digit[l]).join('')).toBe(t.answer_key.code);
+    expect(t.answer_key.code).toBe('4721');                                 // temporary mapping (editable)
+    expect(clues.map((c) => c.label).join('')).not.toBe('נגהפ');             // never shown in solution order
+    expect(t.attempts_limit).toBe(3);
+    expect(t.scoring).toEqual({ method: 'fixed', points: 300 });
+  });
+
+  it('memory: six new sequences of 3..8, 3.5 s per symbol, 20 s recall, 25..75 = 300', () => {
+    const t = task('demo-memory');
+    const stages = t.answer_key.stages as string[][];
+    expect(stages.map((x) => x.length)).toEqual([3, 4, 5, 6, 7, 8]);
+    expect(t.public_content.stage_lengths).toEqual([3, 4, 5, 6, 7, 8]);
+    expect(JSON.stringify(t.public_content)).not.toContain('sufganiya","candle');   // sequences are not public
+    expect(t.public_content.stages).toBeUndefined();
+    stages.flat().forEach((id) => expect(t.public_content.symbols).toContain(id));
+    expect(t.settings.memory).toMatchObject({ show_ms: 3500, recall_ms: 20000 });
+    expect(t.scoring.points_by_stage).toEqual([25, 35, 45, 55, 65, 75]);
+    expect(t.scoring.points_by_stage.reduce((a: number, b: number) => a + b, 0)).toBe(300);
   });
 
   it('finale arithmetic: 6 × 4 + 25 = 49', () => {

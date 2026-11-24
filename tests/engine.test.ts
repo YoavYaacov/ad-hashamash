@@ -5,7 +5,9 @@ import {
   SOLVED, scramble, isSolvable, isSolved, verifyMoves, moveTile, neighbors,
   betBase, betDelta, isRiskyBet, rankTeams, proposeFinalsOptions, analyzeFinals, finalsAward,
   solveMatching, hasUniqueSolution, gradeItem, type BetConfig, type Board,
+  memoryWindows, memoryNow, memoryTotalMs, DEFAULT_MEMORY_TIMING,
 } from '../supabase/functions/_shared/engine/index.ts';
+import { pointsFor } from '../supabase/functions/game/logic.ts';
 
 describe('text normalization', () => {
   it('strips niqqud, punctuation, finals and spaces', () => {
@@ -222,5 +224,31 @@ describe('gradeItem dispatch', () => {
   it('malformed submissions never throw', () => {
     expect(gradeItem({ kind: 'ordering', correct: ['A', 'B'] }, 0, { text: 'x' } as never).correct).toBe(false);
     expect(gradeItem({ kind: 'sliding_puzzle', start: scramble(1) }, 0, { moves: ['x'] } as never).correct).toBe(false);
+  });
+});
+
+describe('candle memory shared timeline', () => {
+  const L = [3, 4, 5, 6, 7, 8];
+  const T = DEFAULT_MEMORY_TIMING;
+  it('windows follow intro → show → recall → result', () => {
+    const w = memoryWindows(L, T);
+    expect(w[0]).toEqual({ introAt: 0, showAt: 3000, recallAt: 3000 + 3 * 3500, recallEnd: 13500 + 20000, resultEnd: 33500 + 6000 });
+    expect(w[1].introAt).toBe(w[0].resultEnd);
+    expect(memoryTotalMs(L, T)).toBe(6 * (3000 + 20000 + 6000) + 33 * 3500);
+  });
+  it('every device derives the same symbol from elapsed time', () => {
+    expect(memoryNow(L, 0, T)).toMatchObject({ stage: 0, phase: 'intro' });
+    expect(memoryNow(L, 3000, T)).toMatchObject({ stage: 0, phase: 'show', symbol: 0 });
+    expect(memoryNow(L, 3000 + 3500 * 2 + 10, T)).toMatchObject({ stage: 0, phase: 'show', symbol: 2 });
+    expect(memoryNow(L, 13500, T)).toMatchObject({ stage: 0, phase: 'recall' });
+    expect(memoryNow(L, 33500, T)).toMatchObject({ stage: 0, phase: 'result' });
+    expect(memoryNow(L, 39500, T)).toMatchObject({ stage: 1, phase: 'intro' });
+    expect(memoryNow(L, memoryTotalMs(L, T) + 1, T).phase).toBe('done');
+  });
+  it('stage points 25..75 sum to 300; wrong = 0', () => {
+    const sc = { method: 'per_stage' as const, points: 25, points_by_stage: [25, 35, 45, 55, 65, 75] };
+    const ok = { ratio: 1, correct: true, needsReview: false };
+    expect([0, 1, 2, 3, 4, 5].map((i) => pointsFor(sc, ok, 0, 1, i)).reduce((a, b) => a + b)).toBe(300);
+    expect(pointsFor(sc, { ratio: 0, correct: false, needsReview: false }, 0, 1, 5)).toBe(0);
   });
 });

@@ -11,13 +11,15 @@ import { SymbolTile } from '../components/Symbols';
 import { Scene } from '../components/Scene';
 import { SafeArt, type SafeState } from '../components/Safe';
 import { VaultClues } from '../components/VaultClues';
+import { MemorySymbol } from '../components/MemoryArt';
+import { useMemoryClock, useStageData } from '../lib/memory';
 import { StakeLines, stake, fmt } from '../components/BetStakes';
 import { Sortable } from '../components/Sortable';
 import { Character, MenorahVariant, type CharacterId, type MenorahId } from '../components/BetArt';
 import type { SceneSpec } from '../content/scenes';
 import { isSolved, moveTile, neighbors, type Board } from '../../supabase/functions/_shared/engine/slidingPuzzle.ts';
 
-interface Props { client: SupabaseClient; s: PublicState; team: TeamState; onChange: () => void }
+interface Props { client: SupabaseClient; s: PublicState; team: TeamState; onChange: () => void; offset?: number }
 
 const HEB = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח'];
 const tap = () => { try { navigator.vibrate?.(12); } catch { /* unsupported */ } };
@@ -129,14 +131,15 @@ function Sprint({ client, s, subs, canSubmit, onChange }: CP) {
   const current = submittedItems(subs).size;
   const [text, setText] = useState('');
   const [picked, setPicked] = useState<string | null>(null);
-  const { busy, msg, send } = useSubmitter(client, onChange);
+  const { busy, send } = useSubmitter(client, onChange);
   useEffect(() => { setText(''); setPicked(null); }, [current]);
-  if (current >= qs.length) return <p className="center-msg ok">כל התשובות נשלחו</p>;
+  if (current >= qs.length) return <p className="center-msg ok">ההגשה הושלמה</p>;
   const q = qs[current];
   const choose = (o: string) => { if (picked) return; tap(); setPicked(o); setTimeout(() => send(current, { choice: o }), 350); };
   return (
     <div className="task sprint" key={current}>
       <div className="q-progress">{qs.map((_, i) => <i key={i} className={i < current ? 'done' : i === current ? 'now' : ''} />)}</div>
+      <div className="q-counter">שאלה {current + 1} מתוך {qs.length}</div>
       <h3 className="q-text">{q.text}</h3>
       {q.options ? (
         <div className={`options ${picked ? 'locked' : ''}`}>
@@ -148,7 +151,6 @@ function Sprint({ client, s, subs, canSubmit, onChange }: CP) {
           <button className="primary" disabled={!canSubmit || !text.trim() || busy !== null} onClick={() => { tap(); send(current, { text }); }}>שליחה ונעילה</button>
         </>
       )}
-      <Feedback m={msg} item={current - 1} />
     </div>
   );
 }
@@ -442,48 +444,82 @@ function Matching({ client, s, subs, canSubmit, onChange }: CP) {
 }
 
 // ── 35: sequence memory — watch, then rebuild. One mistake ends the run. ──
-function SequenceMemory({ client, s, subs, canSubmit, onChange }: CP) {
-  const c = s.round?.content ?? {};
-  const stages: string[][] = c.stages ?? [];
+/**
+ * Candle memory (approved redesign). One shared, server-timed timeline: every phone and the screen
+ * show the same stage and symbol together. No length hints, no counters. 20 s to rebuild the sequence.
+ */
+function SequenceMemory({ client, s, subs, canSubmit, onChange, offset = 0 }: CP) {
+  const r = s.round!;
+  const c = r.content ?? {};
+  const now = useMemoryClock(r, offset);
   const palette: string[] = c.symbols ?? [];
-  const showMs: number = c.show_ms_per_symbol ?? 900;
-  const passed = solvedItems(subs).size;
-  const failed = subs.some((x) => x.correct === false);
-  const stage = passed;
-  const [mode, setMode] = useState<'ready' | 'show' | 'recall'>('ready');
-  const [shown, setShown] = useState(0);
+  const stagePts: number[] = c.stage_points ?? [];
+  const total = (c.stage_lengths ?? []).length;
+  const stage = now?.stage ?? 0;
+  const phase = now?.phase ?? 'intro';
+  const data = useStageData(client, s.instance.id, stage, phase === 'show' || phase === 'recall', false);
   const [input, setInput] = useState<string[]>([]);
-  const { busy, msg, send } = useSubmitter(client, onChange);
+  const sentFor = useRef(-1);
+  const { busy, send } = useSubmitter(client, onChange);
+  useEffect(() => { setInput([]); }, [stage]);
 
-  useEffect(() => { setMode('ready'); setInput([]); }, [stage]);
+  const mine = new Map(subs.filter((x) => x.status !== 'late').map((x) => [x.item_index, x]));
+  const closedUpTo = phase === 'result' || phase === 'done' ? stage : stage - 1;
+  let outAt = -1;
+  for (let k = 0; k <= closedUpTo; k++) { const x = mine.get(k); if (!x || x.correct === false) { outAt = k; break; } }
+  const passedCount = [...mine.values()].filter((x) => x.correct === true).length;
+  const earned = [...mine.values()].filter((x) => x.correct === true).reduce((a, x) => a + (stagePts[x.item_index] ?? 0), 0);
+  const submitted = mine.has(stage);
+
+  // When time runs out, whatever was entered is sent automatically.
   useEffect(() => {
-    if (mode !== 'show') return;
-    setShown(0);
-    const seq = stages[stage];
-    let i = 0;
-    const id = setInterval(() => { i++; if (i >= seq.length) { clearInterval(id); setTimeout(() => setMode('recall'), showMs); } setShown(i); }, showMs);
-    return () => clearInterval(id);
-  }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (phase === 'recall' && now && now.msLeft < 700 && input.length > 0 && !submitted && sentFor.current !== stage && canSubmit) {
+      sentFor.current = stage;
+      send(stage, { sequence: input });
+    }
+  });
 
-  if (failed) return <p className="center-msg">עברתם {passed} שלבים</p>;
-  if (stage >= stages.length) return <p className="center-msg ok">כל השלבים!</p>;
-  const seq = stages[stage];
+  if (!now) return null;
+  if (outAt >= 0 && !(phase === 'result' && outAt === stage)) {
+    return <div className="mem-out enter"><h3>יצאתם מהמשחק</h3><p className="mem-earned">{earned} נקודות נשמרו</p><p className="muted">צפו במסך</p></div>;
+  }
+  if (phase === 'done' || passedCount === total) {
+    return <div className="mem-out ok enter"><h3>כל {total} השלבים!</h3><p className="mem-earned">{earned} נקודות</p></div>;
+  }
   return (
-    <div className="task memory">
-      <div className="q-counter">שלב {stage + 1}</div>
-      {mode === 'ready' && <button className="primary" disabled={!canSubmit} onClick={() => setMode('show')}>הצגת הרצף</button>}
-      {mode === 'show' && <div className="memory-show"><SymbolTile id={seq[Math.min(shown, seq.length - 1)]} size={160} /></div>}
-      {mode === 'recall' && (
+    <div className="task memory2">
+      {phase === 'intro' && (
+        <div className="mem-intro" key={`i${stage}`}>
+          <span className="mem-stage">שלב {stage + 1} מתוך {total}</span>
+          <span className="mem-ready">מסתכלים!</span>
+        </div>
+      )}
+      {phase === 'show' && (
+        <div className="mem-show" key={`s${stage}-${now.symbol}`}>
+          {data.sequence ? <MemorySymbol id={data.sequence[now.symbol]} size={180} /> : <div className="waiting-dots"><i /><i /><i /></div>}
+        </div>
+      )}
+      {phase === 'recall' && (submitted ? (
+        <div className="mem-out enter"><h3>נשלח</h3><div className="waiting-dots" aria-hidden="true"><i /><i /><i /></div></div>
+      ) : (
         <>
-          <div className="memory-input">{seq.map((_, i) => <span key={i} className="slot">{input[i] ? <SymbolTile id={input[i]} size={44} /> : HEB[i]}</span>)}</div>
-          <div className="palette">{palette.map((id) => <SymbolTile key={id} id={id} size={64} label onClick={() => input.length < seq.length && setInput([...input, id])} />)}</div>
+          <div className="mem-bar" aria-hidden="true"><i style={{ width: `${Math.max(0, now.msLeft / ((c.timing?.recall_ms ?? 20000))) * 100}%` }} /></div>
+          <div className="mem-input" aria-label="הבחירות שלכם">
+            {input.length === 0 ? <span className="muted">לוחצים לפי הסדר</span> : input.map((id, i) => <MemorySymbol key={i} id={id} size={40} small />)}
+          </div>
+          <div className="mem-palette">{palette.map((id) => <MemorySymbol key={id} id={id} size={58} onClick={() => { if (!canSubmit) return; tap(); setInput((x) => [...x, id]); }} />)}</div>
           <div className="row">
-            <button className="ghost" onClick={() => setInput(input.slice(0, -1))} disabled={!input.length}>מחיקה</button>
-            <button className="primary" disabled={!canSubmit || input.length !== seq.length || busy !== null} onClick={() => send(stage, { sequence: input })}>שליחה</button>
+            <button className="ghost grow" onClick={() => setInput((x) => x.slice(0, -1))} disabled={!input.length}>מחיקה</button>
+            <button className="primary grow" disabled={!canSubmit || !input.length || busy !== null} onClick={() => { sentFor.current = stage; send(stage, { sequence: input }); }}>שליחה</button>
           </div>
         </>
-      )}
-      <Feedback m={msg} item={stage} />
+      ))}
+      {phase === 'result' && (() => {
+        const x = mine.get(stage);
+        return x?.correct === true
+          ? <div className="mem-result ok" key={`r${stage}`}><b>הצלחתם!</b><span>+{stagePts[stage] ?? 0}</span></div>
+          : <div className="mem-result bad" key={`r${stage}`}><b>{x ? 'טעות' : 'לא נשלח בזמן'}</b><span>יצאתם, {earned} נקודות נשמרו</span></div>;
+      })()}
     </div>
   );
 }
