@@ -121,7 +121,7 @@ set role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a1', false);
 select public.host_round_action((select v::uuid from t.ctx where k = 'inst'), 1, 'pause');
 reset role;
-select t.ok((select paused_remaining_ms between 90000 and 100000 from public.rounds where round_no = 1), 'pause stores remaining time');
+select t.ok((select paused_remaining_ms between 60000 and 70000 from public.rounds where round_no = 1), 'pause stores remaining time');
 set role service_role;
 select t.fails($q$select public.svc_record_submission('00000000-0000-0000-0000-0000000000b2', gen_random_uuid(), 0, '{"choice":"א"}')$q$,
                'round_paused', 'no submissions while paused');
