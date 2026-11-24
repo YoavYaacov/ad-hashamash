@@ -117,12 +117,15 @@ function Console() {
     return () => clearTimeout(id);
   }, [toast]);
   const teamName = (id: string) => teams.find((t) => t.id === id)?.name ?? '—';
+  const [launching, setLaunching] = useState(false);
   const [transfer, setTransfer] = useState<{ name: string; code: string } | null>(null);
   const issueTransfer = async (id: string, name: string) => {
     const { data, error } = await client.rpc('host_issue_transfer_code', { p_team: id });
     if (error) setToast({ text: friendlyError(error), bad: true }); else setTransfer({ name, code: data as string });
   };
 
+/** How long the projector shows the opening promise before round 1, and the lit finale word before the winners. */
+  const PROMISE_MS = 8000, FINALE_TO_WINNERS_MS = 9000;
   // ── Automatic flow (runs on the host phone): time up / everyone finished → close → grade → reveal.
   // Only decisions that matter stay manual: opening a round, uncertain answers, next round, finals.
   useTick(1000);
@@ -154,6 +157,11 @@ function Console() {
     }
     if (r.phase === 'graded') once(':reveal', () => setTimeout(() => act(() => rpc('host_round_action', { p_instance: inst.id, p_round: r.no, p_action: 'reveal' })), 1200));
     if (r.phase === 'revealed' && r.no === 8 && !finals) once(':finals', () => act(() => edge({ action: 'compute_finals', instance_id: inst.id })));
+    // The finale goes straight from the lit word to the winners (no top-5 table in between).
+    if (r.phase === 'revealed' && r.no === 9) once(':finish', () => {
+      setAutoNote('עוד רגע חושפים את הזוכים');
+      setTimeout(() => act(() => rpc('host_finish_game', { p_instance: inst.id })), FINALE_TO_WINNERS_MS);
+    });
   }); // runs every tick
   useEffect(() => { setAutoNote(''); }, [r?.no, r?.phase]);
 
@@ -189,8 +197,14 @@ function Console() {
               ? <button className="primary" disabled={busy} onClick={() => act(() => rpc('host_set_registration', { p_instance: inst.id, p_open: true }))}>פתיחת הרשמה</button>
               : <button className="ghost" disabled={busy} onClick={() => act(() => rpc('host_set_registration', { p_instance: inst.id, p_open: false }))}>סגירת הרשמה</button>}
             {inst.status !== 'setup' && (
-              <button className="go" disabled={busy || activeTeams.length < 2} onClick={() => ask(`להתחיל עם ${activeTeams.length} קבוצות?`, async () => {
-                if (inst.status === 'registration_open') await act(() => rpc('host_set_registration', { p_instance: inst.id, p_open: false }));
+              <button className="go" disabled={busy || launching || activeTeams.length < 2} onClick={() => ask(`להתחיל עם ${activeTeams.length} קבוצות?`, async () => {
+                // The projector shows the opening promise once registration closes; give it time to be read.
+                if (inst.status === 'registration_open') {
+                  setLaunching(true);
+                  await act(() => rpc('host_set_registration', { p_instance: inst.id, p_open: false }));
+                  await new Promise((res) => setTimeout(res, PROMISE_MS));
+                  setLaunching(false);
+                }
                 await act(() => rpc('host_start_game', { p_instance: inst.id }));
               })}>התחלת המשחק</button>
             )}

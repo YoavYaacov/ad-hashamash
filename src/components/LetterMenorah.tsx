@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useId, useRef } from 'react';
 
 /**
  * The finale menorah: each of the 8 branches carries a one-letter "candle" cell (input on the
@@ -35,6 +35,9 @@ const HEB = /[א-ת]/;
 
 export function LetterMenorah({ letters, onChange, disabled, lit = false, className = '', onEnter }: Props) {
   const refs = useRef<(HTMLInputElement | null)[]>([]);
+  // Unique gradient ids: with a shared id, a hidden copy elsewhere on the page can blank out the menorah.
+  const uid = useId().replace(/:/g, '');
+  const gold = `lm-gold-${uid}`, wax = `lm-wax-${uid}`;
   const editable = !!onChange;
   const set = (i: number, v: string) => {
     const next = letters.slice(); next[i] = v; onChange?.(next);
@@ -45,24 +48,24 @@ export function LetterMenorah({ letters, onChange, disabled, lit = false, classN
     <div className={`letter-menorah ${lit ? 'lit' : ''} ${className}`} dir="ltr">
       <svg viewBox={`0 0 ${W} ${H}`} aria-hidden="true">
         <defs>
-          <linearGradient id="lm-gold" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#F8DA8B" /><stop offset="1" stopColor="#B8862F" /></linearGradient>
-          <linearGradient id="lm-wax" x1="0" x2="1"><stop offset="0" stopColor="#F3EDE0" /><stop offset="1" stopColor="#D9CFBC" /></linearGradient>
+          <linearGradient id={gold} x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#F8DA8B" /><stop offset="1" stopColor="#B8862F" /></linearGradient>
+          <linearGradient id={wax} x1="0" x2="1"><stop offset="0" stopColor="#F3EDE0" /><stop offset="1" stopColor="#D9CFBC" /></linearGradient>
         </defs>
         {[60, 110, 160, 210].map((r) => (
-          <path key={r} d={`M ${SX - r} 150 A ${r} ${r * 0.55} 0 0 0 ${SX + r} 150`} fill="none" stroke="url(#lm-gold)" strokeWidth="7" strokeLinecap="round" />
+          <path key={r} d={`M ${SX - r} 150 A ${r} ${r * 0.55} 0 0 0 ${SX + r} 150`} fill="none" stroke={`url(#${gold})`} strokeWidth="7" strokeLinecap="round" />
         ))}
-        {XS.map((x) => <rect key={x} x={x - 22} y={142} width={44} height={10} rx={3} fill="url(#lm-gold)" />)}
-        <rect x={SX - 6} y={90} width={12} height={180} fill="url(#lm-gold)" />
-        <rect x={SX - 18} y={82} width={36} height={12} rx={4} fill="url(#lm-gold)" />
-        <path d={`M ${SX - 70} 300 Q ${SX} 255 ${SX + 70} 300 Z`} fill="url(#lm-gold)" />
-        <rect x={SX - 80} y={298} width={160} height={10} rx={5} fill="url(#lm-gold)" />
+        {XS.map((x) => <rect key={x} x={x - 22} y={142} width={44} height={10} rx={3} fill={`url(#${gold})`} />)}
+        <rect x={SX - 6} y={90} width={12} height={180} fill={`url(#${gold})`} />
+        <rect x={SX - 18} y={82} width={36} height={12} rx={4} fill={`url(#${gold})`} />
+        <path d={`M ${SX - 70} 300 Q ${SX} 255 ${SX + 70} 300 Z`} fill={`url(#${gold})`} />
+        <rect x={SX - 80} y={298} width={160} height={10} rx={5} fill={`url(#${gold})`} />
         {XS.map((x, i) => (
           <g key={i}>
             <line x1={x} y1={CELL_BOTTOM - CELL_H} x2={x} y2={CELL_BOTTOM - CELL_H - 7} stroke="#3a2f22" strokeWidth={2} />
             <Flame x={x} y={CELL_BOTTOM - CELL_H - 7} on={lit} delay={300 + i * 260} />
           </g>
         ))}
-        <rect x={SX - 8} y={22} width={16} height={60} rx={3} fill="url(#lm-wax)" stroke="var(--gold)" strokeWidth={1.5} />
+        <rect x={SX - 8} y={22} width={16} height={60} rx={3} fill={`url(#${wax})`} stroke="var(--gold)" strokeWidth={1.5} />
         <line x1={SX} y1={22} x2={SX} y2={15} stroke="#3a2f22" strokeWidth={2} />
         <Flame x={SX} y={15} on big />
       </svg>
