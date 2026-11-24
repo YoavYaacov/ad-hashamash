@@ -21,7 +21,7 @@ describe('trial content is self-consistent', () => {
     t.public_content.questions.forEach((q: any) => expect(q.options).toHaveLength(4));
     expect(t.answer_key.items.map((x: any) => x.choice)).toEqual(['אנטיוכוס', 'ש׳', 'הנר השישי', '30', 'מסכת שבת בתלמוד']);
     expect(5 + 6 + 7 + 8 + 4).toBe(30);                                       // last four nights + four shamashim
-    expect(t.duration_sec).toBe(100);
+    expect(t.duration_sec).toBe(70);
     expect(t.scoring).toEqual({ method: 'per_item', points: 60 });
   });
 

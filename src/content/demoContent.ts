@@ -62,7 +62,7 @@ export const TASKS: TaskDef[] = [
       { text: 'כמה נרות מדליקים בסך הכול בארבעת הלילות האחרונים של חנוכה, כולל השמשים, בחנוכייה אחת?', options: ['26', '28', '30', '32'] },
       { text: 'באיזה מהמקורות הבאים מופיע סיפור נס פך השמן?', options: ['מגילת אסתר', 'מסכת שבת בתלמוד', 'ספר בראשית', 'פרקי אבות'] },
     ] },
-    duration_sec: 100, scoring: { method: 'per_item', points: 60 }, attempts_limit: 1, settings: { sequential: true },
+    duration_sec: 70, scoring: { method: 'per_item', points: 60 }, attempts_limit: 1, settings: { sequential: true },
     answer_key: { kind: 'sprint', items: [
       { choice: 'אנטיוכוס' }, { choice: 'ש׳' }, { choice: 'הנר השישי' }, { choice: '30' }, { choice: 'מסכת שבת בתלמוד' },
     ] },
@@ -73,17 +73,17 @@ export const TASKS: TaskDef[] = [
     instructions: 'בכל שלישיית תמונות, יש פריטים שעברו שינוי בתמונה אחת לעומת השתיים האחרות.\nבאיזו תמונה יש הכי הרבה פרטים כאלה?',
     public_content: { ask: 'בכל שלישיית תמונות, יש פריטים שעברו שינוי בתמונה אחת לעומת השתיים האחרות.\nבאיזו תמונה יש הכי הרבה פרטים כאלה?',
                       heats: HEATS.map((h) => ({ title: h.title, pictures: buildPictures(h) })), choices: LETTERS },
-    duration_sec: 150, scoring: { method: 'per_item', points: 100 }, attempts_limit: 1, settings: {},
+    duration_sec: 75, scoring: { method: 'per_item', points: 100 }, attempts_limit: 1, settings: {},
     answer_key: { kind: 'three_pictures', items: HEATS.map((h) => ({ choice: LETTERS[heatAnswer(h)], marks: heatMarks(h) })) },
   },
   {
     id: 'demo-vault', idea_no: 4, kind: 'code_vault', title: 'הכספת החשמונאית',
-    instructions: 'ארבע חידות. ארבע ספרות. קוד אחד.\nפתרו את ארבע החידות וגלו את הספרות שמסתתרות מאחורי הכרטיסים.\nהסביבון יגלה לכם את הסדר.\nיש לכם שלושה ניסיונות לפתוח את הכספת!',
+    instructions: 'ארבע חידות. ארבע ספרות. קוד אחד.\nפתרו את ארבע החידות וגלו את הספרות שמסתתרות מאחורי הכרטיסים.\nיש לכם שלושה ניסיונות לפתוח את הכספת!',
     public_content: {
-      ask: 'ארבע חידות. ארבע ספרות. קוד אחד. הסביבון יגלה לכם את הסדר.',
+      ask: 'ארבע חידות. ארבע ספרות. קוד אחד.',
       clues: VAULT_CARDS.map((c) => ({ label: c.letter, text: c.text })),
     },
-    duration_sec: 240, scoring: { method: 'fixed', points: 300 }, attempts_limit: 3, settings: { instant_feedback: true },
+    duration_sec: 120, scoring: { method: 'fixed', points: 300 }, attempts_limit: 3, settings: { instant_feedback: true },
     answer_key: { kind: 'code_vault', code: VAULT_CODE },
   },
   {
