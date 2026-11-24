@@ -166,7 +166,8 @@ function Motivation({ score }: { score: NonNullable<TeamState['score']> }) {
   let body: React.ReactNode = null;
   if (score.rank === 1) {
     if ((score.tied ?? 0) > 0) body = <>אתם צמודים במקום הראשון!<br />כל נקודה מכריעה!</>;
-    else if (score.gap_down != null) body = <>מקום שני נושף בעורפכם!<br />הפער ביניכם הוא רק <P n={score.gap_down} />!</>;
+    else if (score.gap_down != null && score.gap_down <= 300) body = <>מקום שני נושף בעורפכם!<br />הפער ביניכם הוא רק <P n={score.gap_down} />!</>;
+    else if (score.gap_down != null) body = <>אתם בראש בפער של <P n={score.gap_down} />!<br />תמשיכו ככה עד הנר האחרון!</>;
   } else if (score.gap_up != null && score.rank_up != null) {
     body = <>עוד <P n={score.gap_up + 1} /> ואתם במקום {placeName(score.rank_up)}</>;
   }
