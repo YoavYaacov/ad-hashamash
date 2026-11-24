@@ -2,7 +2,7 @@
  * /play — team phone. Mobile first, big targets, short Hebrew copy.
  * Identity = anonymous Supabase session (survives refresh). All state comes from the server.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useClient } from '../lib/clientContext';
 import { usePublicState, useServerClock } from '../lib/hooks';
 import { friendlyError } from '../lib/errors';
@@ -175,6 +175,34 @@ function Motivation({ score }: { score: NonNullable<TeamState['score']> }) {
   return body ? <p className="motivation">{body}</p> : null;
 }
 
+/** Confetti only on the phones of the top three. First place: way over the top. */
+function PhoneConfetti({ rank, start }: { rank: number; start: number }) {
+  const big = rank === 1;
+  const colors = big ? ['#f5c84a', '#ffe7a3', '#fff3c4', '#e9b949', '#f28ab2', '#5c8df6', '#7bc67e', '#b57edc', '#e8604c']
+    : rank === 2 ? ['#eef1f8', '#b9c2d6', '#5c8df6', '#9fd8e8', '#ffffff'] : ['#f0b98a', '#c9834e', '#e8604c', '#f5b841', '#ffe7a3'];
+  const pieces = useMemo(() => {
+    const n = big ? 220 : 70;
+    return Array.from({ length: n }, (_, i) => {
+      const r = (k: number) => ((Math.sin(i * 12.9898 + k * 78.233 + rank) * 43758.5453) % 1 + 1) % 1;
+      const burst = big && i < 90;                              // first place also gets cannon bursts from the bottom corners
+      return { i, burst, side: i % 2 ? 1 : -1, x: r(1) * 100, d: 3 + r(2) * 3, delay: start + (burst ? (i % 3) * 1.6 + r(3) * .3 : r(3) * (big ? 6 : 3)),
+        drift: (r(4) - .5) * 30, spin: 360 + r(5) * 900, s: .7 + r(6) * .9, c: colors[i % colors.length], shape: ['rect', 'strip', 'circle', 'star'][Math.floor(r(7) * 4)],
+        bx: (15 + r(8) * 45), by: -(40 + r(9) * 50) };
+    });
+  }, [big, rank, start]);
+  return (
+    <div className={`phone-confetti ${big ? 'huge' : ''}`} aria-hidden="true">
+      {big && <div className="pc-gold-flash" style={{ animationDelay: `${start}s` }} />}
+      {pieces.map((p) => (
+        <i key={p.i} className={`${p.burst ? 'pb' : 'pf'} ${p.shape} ${p.burst ? (p.side > 0 ? 'l' : 'r') : ''}`}
+           style={{ left: p.burst ? undefined : `${p.x}%`, background: p.shape === 'star' ? undefined : p.c, color: p.c,
+             '--d': `${p.d}s`, '--delay': `${p.delay}s`, '--drift': `${p.drift}vw`, '--spin': `${p.spin}deg`, '--s': p.s,
+             '--bx': `${p.side * p.bx}vw`, '--by': `${p.by}vh` } as React.CSSProperties} />
+      ))}
+    </div>
+  );
+}
+
 /** End of the game on the phones: the same podium as the projector, revealed 3 → 2 → 1. No encouragement lines. */
 function PhonePodium({ s, myId, myRank }: { s: PublicState; myId: string; myRank?: number }) {
   const names = new Map(s.teams.map((x) => [x.id, x]));
@@ -203,6 +231,7 @@ function PhonePodium({ s, myId, myRank }: { s: PublicState; myId: string; myRank
         })}
       </div>
       {myRank && myRank > 3 && <p className="pp-mine">סיימתם במקום {myRank}</p>}
+      {myRank && myRank <= 3 && <PhoneConfetti rank={myRank} start={(delay[myRank] ?? 1) + 0.6} />}
       <div className="pp-greeting">
         <Menorah lit={8} shamashLit size={84} />
         <b>חנוכה שמח!</b>
