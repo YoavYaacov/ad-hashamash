@@ -16,6 +16,7 @@ import { Scene } from '../components/Scene';
 import { Swap } from '../components/Swap';
 import { Character, MenorahVariant } from '../components/BetArt';
 import { askFor } from '../content/asks';
+import { FitText } from '../components/FitText';
 import { MemorySymbol } from '../components/MemoryArt';
 import { useMemoryClock, useStageData } from '../lib/memory';
 import { VaultClues } from '../components/VaultClues';
@@ -430,7 +431,7 @@ function Standings({ s }: { s: PublicState }) {
         {ranked.map((r, i) => (
           <div key={r.team_id} className={`top5-row ${r.rank === 1 ? 'leader' : ''}`} style={{ '--c': r.team?.color, '--i': n - 1 - i } as React.CSSProperties}>
             <span className="rank">{r.rank}</span>
-            <span className="name">{r.team?.name}</span>
+            <span className="name"><FitText>{r.team?.name}</FitText></span>
             <span className="bar"><span style={{ width: `${(100 * r.total) / max}%` }} /></span>
             <span className="pts"><CountUp to={r.total} delay={(n - 1 - i) * 220 + 300} /></span>
           </div>
