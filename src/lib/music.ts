@@ -5,10 +5,10 @@
  */
 import { useEffect, useRef, useState } from 'react';
 
-export type TrackId = 'lobby' | 'puzzle' | 'happy' | 'ticking' | 'party';
+export type TrackId = 'lobby' | 'puzzle' | 'happy' | 'ticking' | 'party' | 'mystery' | 'countdown' | 'battle';
 
 /** Per-track level so the quiet puzzle bed sits under talking and the finale is the loudest. */
-const LEVEL: Record<TrackId, number> = { lobby: 0.8, puzzle: 0.5, happy: 0.6, ticking: 0.7, party: 0.95 };
+const LEVEL: Record<TrackId, number> = { lobby: 0.8, puzzle: 0.5, happy: 0.6, ticking: 0.7, party: 0.95, mystery: 0.6, countdown: 0.6, battle: 0.7 };
 const FADE_MS = 1400;
 
 const src = (id: TrackId) => `${import.meta.env.VITE_AUDIO_BASE ?? `${import.meta.env.BASE_URL}audio/`}${id}.mp3`;
@@ -112,11 +112,15 @@ export function pickTrack(s: {
   const r = s.round;
   if (!r) return 'lobby';
   if (r.kind === 'sequence_memory' && r.phase === 'open') return memoryPhase === 'recall' ? 'ticking' : 'puzzle';   // soft bed while watching
+  // The finale keeps its own drama to the very end (no ticking switch).
+  if (r.kind === 'finale' && r.phase === 'open') return 'battle';
   if (r.phase === 'open') {
     const left = r.ends_at ? Date.parse(r.ends_at) - nowMs : Infinity;
     if (left <= 10_500) return 'ticking';
+    if (r.kind === 'code_vault') return 'mystery';        // four riddles, one code: thinking music
+    if (r.kind === 'bet_puzzle') return 'countdown';      // risk and pressure
     return PUZZLE_KINDS.has(r.kind) ? 'puzzle' : 'happy';
   }
-  if (r.phase === 'betting') return 'happy';
+  if (r.phase === 'betting') return 'countdown';
   return 'lobby';                                       // intro, results, standings
 }

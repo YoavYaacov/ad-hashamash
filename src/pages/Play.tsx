@@ -229,8 +229,10 @@ function PhonePodium({ s, myId, myRank }: { s: PublicState; myId: string; myRank
                 <b className="pp-name">{r.team?.name}</b>
                 {r.members?.length ? <span className="pp-members">{r.members.join(' · ')}</span> : null}
               </div>
-              <span className="pp-pts">{r.total.toLocaleString('he-IL')}</span>
-              {r.team_id === myId && <span className="pp-me">זה אתם!</span>}
+              <span className="pp-side">
+                {r.team_id === myId && <span className="pp-me">זה אתם!</span>}
+                <span className="pp-pts">{r.total.toLocaleString('he-IL')}</span>
+              </span>
             </div>
           );
         })}

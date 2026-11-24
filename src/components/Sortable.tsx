@@ -20,7 +20,7 @@ interface Drag { from: number; to: number; dy: number; settling: boolean }
 
 const buzz = (ms = 10) => { try { navigator.vibrate?.(ms); } catch { /* unsupported */ } };
 
-export function Sortable({ ids, onChange, render, disabled, className = '', arrows = true, label }: Props) {
+export function Sortable({ ids, onChange, render, disabled, className = '', arrows = false, label }: Props) {
   const listRef = useRef<HTMLOListElement>(null);
   const geo = useRef<Geo | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);

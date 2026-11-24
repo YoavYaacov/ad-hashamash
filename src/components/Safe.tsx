@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 /**
  * Original safe illustration (SVG + CSS). States:
  *   closed  – idle, a soft glint passes over the steel
@@ -8,18 +8,21 @@ import { useEffect, useState } from 'react';
 export type SafeState = 'closed' | 'fail' | 'unlock' | 'open';
 
 export function SafeArt({ state, digits = '', size = 260, slots = 4 }: { state: SafeState; digits?: string; size?: number; slots?: number }) {
+  // Unique gradient ids: with shared ids a hidden safe elsewhere on the page can blank out the golden light.
+  const uid = useId().replace(/:/g, '');
+  const steel = `steel-${uid}`, glow = `gold-glow-${uid}`;
   return (
     <div className={`safe safe-${state}`} style={{ width: size }}>
       <svg viewBox="0 0 220 230" className="safe-body" aria-hidden="true">
         <defs>
-          <linearGradient id="steel" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stopColor="#5d6684" /><stop offset="1" stopColor="#2d3350" /></linearGradient>
-          <radialGradient id="gold-glow"><stop offset="0" stopColor="#fff3c4" /><stop offset=".5" stopColor="#f5b841" /><stop offset="1" stopColor="#f5b84100" /></radialGradient>
+          <linearGradient id={steel} x1="0" x2="1" y1="0" y2="1"><stop offset="0" stopColor="#5d6684" /><stop offset="1" stopColor="#2d3350" /></linearGradient>
+          <radialGradient id={glow}><stop offset="0" stopColor="#fff3c4" /><stop offset=".5" stopColor="#f5b841" /><stop offset="1" stopColor="#f5b84100" /></radialGradient>
         </defs>
-        <rect x="6" y="6" width="208" height="206" rx="14" fill="url(#steel)" stroke="#1b2038" strokeWidth="4" />
+        <rect x="6" y="6" width="208" height="206" rx="14" fill={`url(#${steel})`} stroke="#1b2038" strokeWidth="4" />
         <rect x="24" y="212" width="30" height="12" rx="3" fill="#1b2038" /><rect x="166" y="212" width="30" height="12" rx="3" fill="#1b2038" />
         {/* interior (visible when the door opens) */}
         <rect x="22" y="22" width="176" height="174" rx="8" fill="#140f05" />
-        <circle cx="110" cy="110" r="90" fill="url(#gold-glow)" className="safe-light" />
+        <circle cx="110" cy="110" r="90" fill={`url(#${glow})`} className="safe-light" />
         <g className="safe-treasure">
           {[[80, 150], [100, 146], [120, 150], [140, 146], [90, 136], [112, 132], [132, 136]].map(([x, y], i) => (
             <ellipse key={i} cx={x} cy={y} rx="12" ry="5" fill="#e9b949" stroke="#b8862f" strokeWidth="1.5" />
@@ -49,11 +52,11 @@ export function SafeArt({ state, digits = '', size = 260, slots = 4 }: { state: 
  * The success moment, staged so nothing "jumps": the safe appears closed with the code in green,
  * the wheel spins, the door swings open, light and treasure spill out, sparks fly.
  */
-export function OpeningSafe({ digits = '', size = 240, delay = 250 }: { digits?: string; size?: number; delay?: number }) {
+export function OpeningSafe({ digits = '', size = 240, delay = 250, glide = false }: { digits?: string; size?: number; delay?: number; glide?: boolean }) {
   const [st, setSt] = useState<SafeState>('unlock');
   useEffect(() => { const t = setTimeout(() => setSt('open'), delay + 900); return () => clearTimeout(t); }, [delay]);
   return (
-    <div className="opening-safe" style={{ width: size }}>
+    <div className={`opening-safe ${glide ? 'glide' : ''}`} style={{ width: size }}>
       <SafeArt state={st} digits={digits} size={size} />
       {st === 'open' && (
         <div className="safe-sparks" aria-hidden="true">

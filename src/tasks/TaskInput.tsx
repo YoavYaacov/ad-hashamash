@@ -2,7 +2,7 @@
  * Phone-side task UIs. These only COLLECT answers — correctness and points are decided on the server.
  */
 import { LetterMenorah } from '../components/LetterMenorah';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { uuid } from '../lib/uuid';
 import type { PublicState, TeamState } from '../lib/types';
@@ -83,6 +83,26 @@ const submittedItems = (subs: CP['subs']) => new Set(subs.filter((x) => x.status
 const solvedItems = (subs: CP['subs']) => new Set(subs.filter((x) => x.correct === true).map((x) => x.item_index));
 
 // ── 4: vault — a real safe: keypad, shake on a wrong code, door swings open on the right one ──
+/** FLIP: the child starts exactly where `from` was (position and size) and glides to its own place. */
+function FlipFrom({ from, children }: { from: DOMRect | null; children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || !from) return;
+    const to = el.getBoundingClientRect();
+    if (!to.width) return;
+    const dx = from.left + from.width / 2 - (to.left + to.width / 2);
+    const dy = from.top + from.height / 2 - (to.top + to.height / 2);
+    const k = from.width / to.width;
+    el.style.transition = 'none';
+    el.style.transform = `translate(${dx}px, ${dy}px) scale(${k})`;
+    void el.offsetWidth;   // commit the start position before animating
+    el.style.transition = 'transform .85s cubic-bezier(.22,1,.36,1)';
+    el.style.transform = 'none';
+  }, [from]);
+  return <div ref={ref} className="flip-from" style={{ transformOrigin: 'center center', willChange: 'transform' }}>{children}</div>;
+}
+
 function CodeInput({ client, s, subs, canSubmit, onChange }: CP) {
   const c = s.round?.content ?? {};
   const [code, setCode] = useState('');
@@ -90,6 +110,8 @@ function CodeInput({ client, s, subs, canSubmit, onChange }: CP) {
   const [status, setStatus] = useState('');
   const [fails, setFails] = useState(0);
   const { busy, send } = useSubmitter(client, onChange);
+  const safeRef = useRef<HTMLDivElement>(null);
+  const fromRect = useRef<DOMRect | null>(null);
   const solved = solvedItems(subs).has(0);
   const used = subs.filter((x) => x.item_index === 0 && x.status !== 'late').length;
   const left = Math.max(0, 3 - used);
@@ -98,7 +120,11 @@ function CodeInput({ client, s, subs, canSubmit, onChange }: CP) {
     if (code.length !== 4) return;
     tap();
     const res = await send(0, { code });
-    if (res?.correct === true) { setState('unlock'); vibrateLong(); setTimeout(() => setState('open'), 700); }
+    if (res?.correct === true) {
+      // Unlock in place (green code, spinning wheel), then the same safe glides to the centre and opens.
+      setState('unlock'); vibrateLong();
+      setTimeout(() => { fromRect.current = safeRef.current?.getBoundingClientRect() ?? null; setState('open'); }, 750);
+    }
     else if (res?.correct === false) {
       setFails((n) => n + 1); setState('fail');
       try { navigator.vibrate?.([90, 60, 90, 60, 140]); } catch { /* unsupported */ }
@@ -106,16 +132,23 @@ function CodeInput({ client, s, subs, canSubmit, onChange }: CP) {
       setTimeout(() => { setState('closed'); setCode(''); }, 1100);
     }
   };
-  if (solved || state === 'open') {
-    return <div className="vault-phone done"><OpeningSafe digits={code} size={230} /><p className="ok vault-status vault-win">הכספת נפתחה!</p></div>;
+  // While the safe unlocks in place, keep this layout even if the server already confirmed the solve.
+  if (state === 'open' || (solved && state !== 'unlock')) {
+    const glide = !!fromRect.current;
+    return (
+      <div className="vault-phone done">
+        <FlipFrom from={fromRect.current}><OpeningSafe digits={code} size={230} delay={glide ? 850 : 250} glide={glide} /></FlipFrom>
+        <p className="ok vault-status vault-win">הכספת נפתחה!</p>
+      </div>
+    );
   }
   if (left === 0) return <div className="vault-phone done"><SafeArt state="closed" size={200} /><p className="center-msg">הכספת ננעלה</p></div>;
   return (
-    <div className="vault-phone">
+    <div className={`vault-phone ${state === 'unlock' ? 'leaving' : ''}`}>
       <VaultClues clues={c.clues ?? []} order={c.order_clue} />
       <div className="vault-pad">
         <div className="vault-side">
-          <SafeArt key={fails} state={state} digits={code} size={112} />
+          <div ref={safeRef}><SafeArt key={fails} state={state} digits={code} size={112} /></div>
           <p className={`vault-status ${state === 'fail' ? 'error' : 'muted'}`} role="status">{status || `${left} ניסיונות`}</p>
         </div>
         <div className="keypad" dir="ltr">

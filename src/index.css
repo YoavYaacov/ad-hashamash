@@ -963,3 +963,16 @@ input.lm-cell:disabled { opacity: .7; }
 .finale-board { display: grid; justify-items: center; gap: 1.5cqh; container-type: inline-size; width: min(50cqw, 900px); margin-inline: auto; }
 .screen .finale-board .lm-cell { font-size: 6.2cqw; }
 .finale-board .finale-puzzle { margin: 0; font-size: 1.6em; white-space: nowrap; max-width: none; }
+
+/* Top 5: identical column lines on every row (the leader is bigger, its columns are not) */
+.top5-row { grid-template-columns: 5cqw 34cqw minmax(0, 1fr) 14cqw; gap: 1.4cqw; padding-inline: 1.6cqw; }
+.top5-row .rank { justify-self: center; }
+.top5-row .pts { justify-self: stretch; text-align: right; white-space: nowrap; direction: ltr; }
+.opening-safe.glide { animation: none; }
+/* Vault win: everything but the safe fades away while it unlocks, then the safe glides to the centre */
+.vault-phone.leaving .vault-clues, .vault-phone.leaving .keypad, .vault-phone.leaving .vault-status { opacity: 0; transition: opacity .55s ease; }
+/* "זה אתם!" sits in the card's own column, above the points: never over the text or the frame */
+.pp-side { display: grid; justify-items: center; gap: .35rem; }
+.pp-side .pp-me { position: static; white-space: nowrap; }
+.vault-phone.done .opening-safe { transition: translate 1.4s cubic-bezier(.25,1.1,.45,1); }
+.vault-phone.done .opening-safe:has(.safe-open) { translate: 13% 0; }   /* the door swings out to the left: keep the whole picture centred */
