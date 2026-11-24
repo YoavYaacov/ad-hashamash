@@ -46,7 +46,8 @@ export default function Screen() {
   // One click anywhere on the screen: the screen itself goes full screen (also inside the demo's split view),
   // and that click also lets the browser start the music.
   const goFull = (e: React.MouseEvent<HTMLDivElement>) => {
-    const el = e.currentTarget;
+    // On the real projector page the whole page goes full screen; inside the demo only the screen pane does.
+    const el = document.querySelector('.demo-shell') ? e.currentTarget : document.documentElement;
     try { if (!document.fullscreenElement) el.requestFullscreen?.().catch(() => {}); } catch { /* not allowed */ }
   };
   return (
