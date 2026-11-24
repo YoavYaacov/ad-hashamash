@@ -140,7 +140,7 @@ export const TASKS: TaskDef[] = [
     id: 'demo-bet', idea_no: 31, kind: 'bet_puzzle', title: 'הימור בחידה',
     instructions: 'בסבב הזה מהמרים על הנקודות שלכם!\nקודם בוחרים בטלפון על כמה להמר, ורק אחר כך נחשפת החידה.\nזהיר: רווח קטן, בלי סיכון.\nנועז: רווח גדול יותר, ואפשר גם להפסיד.\nהכול או כלום: הרווח הכי גדול, וגם ההפסד.\nפותרים נכון? מרוויחים. טועים? מפסידים לפי המסלול.',
     public_content: {
-      people: ['סבתא רחל', 'דוֹד אבי', 'נועה', 'איתי'],
+      people: ['סבתא מלכה', 'דוֹד אבי', 'נועה', 'איתי'],
       items: ['חנוכיית כסף', 'חנוכיית זכוכית לשמן', 'חנוכיית לגו', 'חנוכיית חימר'],
       // Art ids for the drawings (src/components/BetArt.tsx). Order matches people / items.
       people_art: ['grandma', 'uncle', 'girl', 'boy'],

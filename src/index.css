@@ -806,7 +806,7 @@ html { background: var(--night); }
 .pts-glow { font-size: 1.22em; color: #ffe7a3; font-weight: 400; text-shadow: 0 0 8px rgba(245,184,65,.9), 0 0 18px rgba(245,184,65,.55); white-space: nowrap; }
 .motivation { line-height: 1.55; }
 .match-items .sort-row { grid-template-columns: .8rem 1fr; }
-/* Bet matching: drawing and name centred in every row */
-.match-people .person { justify-content: center; text-align: center; }
-.match-items .sort-body { justify-content: center; }
-.menorah-card { justify-content: center; text-align: center; }
+/* Bet matching: drawing and name aligned right, centred vertically in every row */
+.match-people .person { justify-content: flex-start; align-items: center; text-align: right; }
+.match-items .sort-body { justify-content: flex-start; align-items: center; }
+.menorah-card { justify-content: flex-start; align-items: center; text-align: right; }
