@@ -341,7 +341,14 @@ export class MockServer {
     let score: Json = null;
     if (['in_progress', 'finished'].includes(this.inst.status)) {
       const tot = this.totals(true), mine = tot.find((x) => x.team_id === t.id)!.total;
-      score = { total: mine, rank: 1 + tot.filter((x) => x.total > mine).length, teams: tot.length };
+      const rank = 1 + tot.filter((x) => x.total > mine).length;
+      const above = tot.filter((x) => x.total > mine).map((x) => x.total);
+      const below = tot.filter((x) => x.total < mine).map((x) => x.total);
+      const tied = tot.filter((x) => x.total === mine).length - 1;
+      const up = above.length ? Math.min(...above) : null;
+      score = { total: mine, rank, teams: tot.length, tied,
+        gap_up: up == null ? null : up - mine, rank_up: up == null ? null : 1 + tot.filter((x) => x.total > up).length,
+        gap_down: rank === 1 && tied === 0 && below.length ? mine - Math.max(...below) : null };
     }
     return { registered: true, instance_id: this.inst.id,
       team: { id: t.id, name: t.name, color: t.color, members: t.members, status: t.status, role: d.role },

@@ -156,11 +156,28 @@ function NameReveal({ name, color, onDone }: { name: string; color: string; onDo
   );
 }
 
+const ORD = ['', 'ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שביעי', 'שמיני', 'תשיעי', 'עשירי'];
+const placeName = (n: number) => (ORD[n] ? `ה${ORD[n]}` : `ה־${n}`);
+const pts = (n: number) => (n === 1 ? 'נקודה אחת' : `${n.toLocaleString('he-IL')} נקודות`);
+
+/** The line under the score: chase the next place up, or (for the leader) feel the runner-up breathing down your neck. */
+function Motivation({ score }: { score: NonNullable<TeamState['score']> }) {
+  let text: string | null = null;
+  if (score.rank === 1) {
+    if ((score.tied ?? 0) > 0) text = 'אתם צמודים במקום הראשון! כל נקודה מכריעה!';
+    else if (score.gap_down != null) text = `מקום שני נושף בעורפכם! הפער ביניכם הוא רק ${pts(score.gap_down)}!`;
+  } else if (score.gap_up != null && score.rank_up != null) {
+    text = `עוד ${pts(score.gap_up + 1)} ואתם במקום ${placeName(score.rank_up)}`;
+  }
+  return text ? <p className="motivation">{text}</p> : null;
+}
+
 function ScoreCard({ score }: { score: NonNullable<TeamState['score']> }) {
   return (
     <div className="score-card enter" role="status">
       <div className="line"><span>הניקוד שלכם</span><b>{score.total.toLocaleString('he-IL')}</b></div>
       <div className="line"><span>המקום שלכם</span><b>{score.rank}<small className="muted" style={{ fontSize: '1rem' }}> מתוך {score.teams}</small></b></div>
+      <Motivation score={score} />
     </div>
   );
 }

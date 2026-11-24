@@ -797,3 +797,4 @@ button.mem-symbol:active { transform: scale(.92); border-color: var(--gold); bac
 html { background: var(--night); }
 .screen-wrap::backdrop, :root::backdrop { background: var(--night); }
 .screen-wrap:fullscreen .screen { width: 100%; height: 100%; }
+.motivation { margin: .4rem 0 0; padding-top: .6rem; border-top: 1px solid var(--night-3); text-align: center; color: var(--gold-soft); font-size: 1.05rem; line-height: 1.35; animation: enter-up .6s ease .5s both; }

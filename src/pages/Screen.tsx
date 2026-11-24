@@ -387,7 +387,7 @@ function Solution({ s }: { s: PublicState }) {
         </div>
       ); break;
     case 'sequence_memory':
-      body = <div className="sol-seq">{sol.stages[sol.stages.length - 1].map((id: string, i: number) => <SymbolTile key={i} id={id} size={64} />)}</div>; break;
+      body = null; break;                                   // no solution for the memory round: straight to the scores
     case 'sliding_puzzle':
       body = c.scene ? <div className="puzzle-solution"><Scene s={c.scene} /></div> : null; break;
   }

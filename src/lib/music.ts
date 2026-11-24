@@ -37,10 +37,16 @@ class Player {
   setMaster(v: number) { this.master = Math.max(0, Math.min(1, v)); this.fadeTo(this.current); }
 
   play(id: TrackId | null) {
-    if (id === this.current) { this.fadeTo(id); return; }
     this.current = id;
-    if (id) { const a = this.el(id); if (a.paused) { if (id !== 'ticking') a.currentTime = a.currentTime || 0; a.play().catch(() => {}); } }
+    if (id) { const a = this.el(id); if (a.paused) a.play().catch(() => {}); }   // always make sure it is actually playing
     this.fadeTo(id);
+  }
+
+  /** Safety net: if the browser paused the current track for any reason, start it again. */
+  keepAlive() {
+    if (!this.unlocked || !this.current || this.master === 0) return;
+    const a = this.el(this.current);
+    if (a.paused) { a.play().catch(() => {}); this.fadeTo(this.current); }
   }
 
   private fadeTo(id: TrackId | null) {
@@ -75,6 +81,7 @@ export function useMusic(track: TrackId | null, on: boolean, volume: number) {
   want.current = on ? track : null;
   useEffect(() => { getPlayer().setMaster(volume / 100); }, [volume]);
   useEffect(() => { if (ready) getPlayer().play(on ? track : null); }, [track, on, ready]);
+  useEffect(() => { const t = setInterval(() => getPlayer().keepAlive(), 3000); return () => clearInterval(t); }, []);
   useEffect(() => {
     if (ready) return;
     let done = false;
@@ -104,13 +111,12 @@ export function pickTrack(s: {
   if (st !== 'in_progress') return 'lobby';
   const r = s.round;
   if (!r) return 'lobby';
-  if (r.kind === 'sequence_memory' && r.phase === 'open') return memoryPhase === 'recall' ? 'ticking' : null;   // quiet while watching
+  if (r.kind === 'sequence_memory' && r.phase === 'open') return memoryPhase === 'recall' ? 'ticking' : 'puzzle';   // soft bed while watching
   if (r.phase === 'open') {
     const left = r.ends_at ? Date.parse(r.ends_at) - nowMs : Infinity;
     if (left <= 10_500) return 'ticking';
     return PUZZLE_KINDS.has(r.kind) ? 'puzzle' : 'happy';
   }
   if (r.phase === 'betting') return 'happy';
-  if (r.phase === 'paused') return null;
   return 'lobby';                                       // intro, results, standings
 }

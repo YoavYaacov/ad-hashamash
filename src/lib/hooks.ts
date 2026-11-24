@@ -113,9 +113,13 @@ export function remainingMs(endsAt: string | null, pausedMs: number | null, offs
 export const AUTO_STANDINGS_MS = 8_000;
 
 /** True once the automatic "solution → top-5 table" switch is due (server time based). */
-export function useAutoStandings(round: { phase: string; revealed_at: string | null; pin_solution: boolean } | null | undefined, offset: number) {
+/** Rounds with no solution to show (candle memory): the scores come right away. */
+const NO_SOLUTION_KINDS = new Set(['sequence_memory']);
+
+export function useAutoStandings(round: { phase: string; revealed_at: string | null; pin_solution: boolean; kind?: string } | null | undefined, offset: number) {
+  const delay = round?.kind && NO_SOLUTION_KINDS.has(round.kind) ? 0 : AUTO_STANDINGS_MS;
   const due = round && ['revealed', 'done'].includes(round.phase) && !round.pin_solution && round.revealed_at
-    ? Date.parse(round.revealed_at) + AUTO_STANDINGS_MS : null;
+    ? Date.parse(round.revealed_at) + delay : null;
   const [now, setNow] = useState(() => Date.now() + offset);
   useEffect(() => {
     if (due == null) return;

@@ -43,5 +43,5 @@ export interface TeamState {
   team?: { id: string; name: string; color: string; members: string[]; status: string; role: 'captain' };
   round_submissions?: { item_index: number; attempt_no: number; status: string; received_at: string; correct: boolean | null }[];
   bet?: { track_id: string; base_points: number } | null;
-  score?: { total: number; rank: number; teams: number } | null;
+  score?: { total: number; rank: number; teams: number; gap_up?: number | null; rank_up?: number | null; gap_down?: number | null; tied?: number } | null;
 }
