@@ -848,3 +848,24 @@ html { background: var(--night); }
 .pp-greeting b { font-size: 2rem; font-weight: 400; color: var(--gold); text-shadow: 0 0 18px rgba(245,200,74,.6); }
 .pp-greeting span { font-size: 1.2rem; color: var(--cream); }
 .pp-greeting .menorah { filter: drop-shadow(0 0 12px rgba(245,200,74,.5)); }
+.pp-greeting.now { animation-delay: .2s; margin-top: 18vh; gap: .5rem; }
+.pp-greeting.now b { font-size: 2.6rem; }
+.pp-greeting.now span { font-size: 1.4rem; }
+
+/* Phone at the end: your place, then the greeting */
+.phone-final { display: grid; gap: 1.6rem; padding: 2rem 0 1rem; justify-items: center; text-align: center; }
+.pf-place { --metal: 233, 185, 73; position: relative; isolation: isolate; display: grid; justify-items: center; gap: .3rem; padding: 1.4rem 1rem;
+  animation: pod-reveal 1.3s cubic-bezier(.2,1.1,.3,1) both; animation-delay: var(--d); }
+.pf-place.gold { --metal: 245, 200, 74; } .pf-place.silver { --metal: 223, 230, 242; } .pf-place.bronze { --metal: 205, 127, 50; } .pf-place.plain { --metal: 233, 185, 73; }
+.pf-flash { position: absolute; left: 50%; top: 50%; width: 320px; height: 320px; margin: -160px 0 0 -160px; z-index: -1; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(255,255,255,.9) 0%, rgba(var(--metal), .8) 18%, rgba(var(--metal), .25) 45%, rgba(var(--metal), 0) 70%);
+  animation: pod-flash 2s ease-out both; animation-delay: calc(var(--d) - .1s); }
+.pf-place.plain .pf-flash { opacity: .5; }
+.pf-label { font-size: 1.2rem; color: var(--cream); }
+.pf-rank { font-size: 3.2rem; font-weight: 400; line-height: 1.05; color: rgb(var(--metal)); text-shadow: 0 0 22px rgba(var(--metal), .7); }
+.pf-team { font-size: 1.3rem; }
+.pf-pts { color: var(--gold-soft); font-size: 1.05rem; }
+/* Never let an animation (zoom, light flash) widen the page: no sideways shift on phones */
+html, body { overflow-x: clip; }
+.play, .phone-final, .phone-podium { overflow-x: clip; max-width: 100vw; }
+@supports not (overflow: clip) { html, body, .play, .phone-final { overflow-x: hidden; } }

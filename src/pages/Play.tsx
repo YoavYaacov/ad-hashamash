@@ -184,7 +184,7 @@ function PhonePodium({ s, myId, myRank }: { s: PublicState; myId: string; myRank
   const place = (i: number) => top.length - i;              // position in the podium (1..3)
   return (
     <div className="phone-podium">
-      <h2 className="pp-title">הטריבונה</h2>
+      <h2 className="pp-title">הזוכים הגדולים</h2>
       <div className="pp-list">
         {order.map((r: any, i: number) => {
           const p = place(i);
