@@ -907,3 +907,10 @@ html, body { overflow-x: clip; }
 .pp-card.me { outline: 2px dashed var(--gold); outline-offset: -6px; }
 .pp-card.me:not(.pp1) { animation: pod-reveal 1.2s cubic-bezier(.2,1.1,.3,1) calc(var(--d) + .6s) both, winner-pulse 1.6s ease-in-out calc(var(--d) + 2s) infinite; }
 .phone-podium { padding-inline: 4px; }
+/* The projector page: the wrapper is pinned to the real window, so it always fills it exactly —
+   also right after entering/leaving full screen (no grey strip, no stale height). */
+.screen-wrap { position: fixed; inset: 0; width: auto; height: auto; }
+.screen-frame .screen-wrap { position: relative; inset: auto; width: 100%; height: auto; aspect-ratio: 16 / 9; }
+.screen-wrap:fullscreen { position: fixed; inset: 0; width: 100vw !important; height: 100vh !important; }
+:root:fullscreen, :root:fullscreen body { background: var(--night); }
+::backdrop { background: var(--night); }
