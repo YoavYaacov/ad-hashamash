@@ -32,11 +32,7 @@ language sql immutable as $$
     'אנטיוכוס מחפש עבודה',
     'השמש בחופשת מחלה',
     'הסביבון שהתעלף',
-    'מתתיהו על שייק חלבון',
-    'שמונה ימים בלי דיאטה',
-    'הלביבות של סבתא (לא לגעת!)',
-    'ספרנו שמונה נרות ונרדמנו',
-    'חנוכייה במצב רוח רע'
+    'שמונה ימים בלי דיאטה'
   ];
 $$;
 revoke execute on function private.funny_team_names() from public, anon, authenticated;
