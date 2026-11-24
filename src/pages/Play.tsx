@@ -162,14 +162,15 @@ const pts = (n: number) => (n === 1 ? 'נקודה אחת' : `${n.toLocaleString(
 
 /** The line under the score: chase the next place up, or (for the leader) feel the runner-up breathing down your neck. */
 function Motivation({ score }: { score: NonNullable<TeamState['score']> }) {
-  let text: string | null = null;
+  const P = ({ n }: { n: number }) => <b className="pts-glow">{pts(n)}</b>;
+  let body: React.ReactNode = null;
   if (score.rank === 1) {
-    if ((score.tied ?? 0) > 0) text = 'אתם צמודים במקום הראשון! כל נקודה מכריעה!';
-    else if (score.gap_down != null) text = `מקום שני נושף בעורפכם! הפער ביניכם הוא רק ${pts(score.gap_down)}!`;
+    if ((score.tied ?? 0) > 0) body = <>אתם צמודים במקום הראשון!<br />כל נקודה מכריעה!</>;
+    else if (score.gap_down != null) body = <>מקום שני נושף בעורפכם!<br />הפער ביניכם הוא רק <P n={score.gap_down} />!</>;
   } else if (score.gap_up != null && score.rank_up != null) {
-    text = `עוד ${pts(score.gap_up + 1)} ואתם במקום ${placeName(score.rank_up)}`;
+    body = <>עוד <P n={score.gap_up + 1} /> ואתם במקום {placeName(score.rank_up)}</>;
   }
-  return text ? <p className="motivation">{text}</p> : null;
+  return body ? <p className="motivation">{body}</p> : null;
 }
 
 function ScoreCard({ score }: { score: NonNullable<TeamState['score']> }) {
