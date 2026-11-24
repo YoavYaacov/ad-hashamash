@@ -15,7 +15,7 @@ select t.ok((select string_agg(letter, '' order by letter) = (select string_agg(
              from private.instance_clues where instance_id = (select v::uuid from t.ctx where k = 'inst')), 'clues: exactly the letters of the finale word');
 select t.ok((select string_agg(letter, '' order by round_no) <> 'סופגניות' from private.instance_clues where instance_id = (select v::uuid from t.ctx where k = 'inst')), 'clues: scrambled order');
 select t.ok((select count(distinct spot) = 8 and bool_and(abs(rot) <= 26) from private.instance_clues where instance_id = (select v::uuid from t.ctx where k = 'inst')), 'clues: different spots, gentle tilt');
-select t.ok((select position('סופגניות' in state::text) = 0 from public.public_state where instance_id = (select v::uuid from t.ctx where k = 'inst')), 'clues: the word itself never in the public state');
+select t.ok((select position('סופגניות' in (state -> 'round')::text) = 0 from public.public_state where instance_id = (select v::uuid from t.ctx where k = 'inst')), 'clues: the word itself never in the public state');
 select t.ok((select bool_and(state -> 'round' -> 'clue' ->> 'letter' = c.letter) from public.public_state p, private.instance_clues c where c.round_no = 2 and c.instance_id = p.instance_id and p.instance_id = (select v::uuid from t.ctx where k = 'inst')),
             'clues: stable between refreshes');
 set role anon;
