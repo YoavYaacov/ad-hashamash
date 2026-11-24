@@ -31,7 +31,7 @@ jobs:
         run: |
           cp dist/index.html dist/404.html
           node scripts/build-demo.mjs
-          mkdir -p dist/demo && cp demo-dist/index.html dist/demo/index.html
+          mkdir -p dist/demo && cp demo-dist/index.html dist/demo/index.html && cp -r public/audio dist/demo/audio
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

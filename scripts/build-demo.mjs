@@ -8,7 +8,7 @@ await build({
   jsx: 'automatic', charset: 'utf8', outdir: out, logLevel: 'warning',
   define: {
     'import.meta.env.BASE_URL': '"/"',
-    'import.meta.env.VITE_AUDIO_BASE': '"https://yoavyaacov.github.io/ad-hashamash/audio/"',
+    'import.meta.env.VITE_AUDIO_BASE': '"./audio/"',
     'import.meta.env.VITE_SUPABASE_URL': 'undefined',
     'import.meta.env.VITE_SUPABASE_ANON_KEY': 'undefined',
   },

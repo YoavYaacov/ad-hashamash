@@ -43,8 +43,10 @@ export default function Screen() {
   const offset = useServerClock(client);
   const auto = useAutoStandings(state?.round, offset);
 
+  // One click anywhere on the projector page: full screen (and the browser then allows the music too).
+  const goFull = () => { try { if (!document.fullscreenElement && !document.querySelector('.demo-shell')) document.documentElement.requestFullscreen?.().catch(() => {}); } catch { /* not allowed */ } };
   return (
-    <div className="screen-wrap"><div className="screen stage-16x9">
+    <div className="screen-wrap" onClick={goFull}><div className="screen stage-16x9">
       <Embers />
       {conn !== 'live' && <div className="conn-badge" aria-live="polite">{conn === 'connecting' ? 'מתחבר…' : 'מתחבר מחדש…'}</div>}
       {state?.instance.mode === 'demo' && <div className="demo-badge">משחק ניסיון</div>}
