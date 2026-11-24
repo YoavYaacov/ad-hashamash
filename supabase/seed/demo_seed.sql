@@ -46,7 +46,7 @@ insert into private.task_secrets (task_id, answer_key, verified_note) values
 ('demo-symbols', '{"kind":"symbols","items":[{"text":{"canonical":"פך השמן","alternatives":["פך שמן","כד השמן"]}},{"text":{"canonical":"נס במקדש"}}]}', 'trial content')
 on conflict (task_id) do update set answer_key = excluded.answer_key, verified_note = excluded.verified_note;
 
-insert into public.game_templates (id, name, settings, is_placeholder) values ('00000000-0000-0000-0000-00000000d001', 'הרכב מומלץ · תוכן ניסיון', '{"late_grace_ms":1500,"max_teams":20,"finalists":5,"tie_breakers":["finalPlace","lastRoundPoints","lastCorrectAt"],"finals_params":{"minFirst":200,"minSecond":100,"balancedRatio":0.5,"secondRatio":0.5}}', true)
+insert into public.game_templates (id, name, settings, is_placeholder) values ('00000000-0000-0000-0000-00000000d001', 'הרכב מומלץ · תוכן ניסיון', '{"late_grace_ms":1500,"max_teams":30,"finalists":5,"tie_breakers":["finalPlace","lastRoundPoints","lastCorrectAt"],"finals_params":{"minFirst":200,"minSecond":100,"balancedRatio":0.5,"secondRatio":0.5}}', true)
 on conflict (id) do update set name = excluded.name, settings = excluded.settings;
 
 delete from public.game_template_rounds where template_id = '00000000-0000-0000-0000-00000000d001';

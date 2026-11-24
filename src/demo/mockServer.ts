@@ -318,7 +318,7 @@ export class MockServer {
     if (this.devices.some((d) => d.user_id === uid)) fail('device_already_registered');
     const m = (members ?? []).map((x) => x.trim()).filter(Boolean);
     if (!m.length) fail('members_required');
-    if (this.activeTeams().length >= 20) fail('too_many_teams');
+    if (this.activeTeams().length >= (this.inst?.settings?.max_teams ?? 30)) fail('too_many_teams');
     const free = FUNNY.filter((n) => !this.teams.some((t) => t.name === n));
     const name = free.length ? free[Math.floor(Math.random() * free.length)] : `קבוצה ${this.teams.length + 1}`;
     const t: Team = { id: uuid(), name, color: PALETTE[this.activeTeams().length % PALETTE.length], members: m, status: 'active', created_at: Date.now(), bot };

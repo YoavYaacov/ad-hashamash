@@ -93,7 +93,7 @@ label { display: grid; gap: .35em; font-weight: 600; }
 .locked-msg { font-size: 1.6em; color: var(--gold-soft); }
 .team-cloud { height: 100%; display: flex; flex-direction: column; gap: 2cqh; justify-content: center; }
 .team-count { font-size: 1.4em; color: var(--gold-soft); }
-.team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(12em, 1fr)); gap: 1.4cqh 1.2cqw; }
+.team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(12em, 1fr)); gap: calc(1.4cqh * var(--chip-scale, 1)) 1.2cqw; font-size: calc(1em * var(--chip-scale, 1)); }
 .team-cloud[data-count] .team-grid { grid-auto-rows: min-content; }
 .team-chip { --c: var(--gold); display: flex; align-items: center; gap: .6em; padding: .7em 1em; border-radius: 999px; background: color-mix(in srgb, var(--c) 18%, var(--night-2)); border: 2px solid var(--c); animation: pop .6s cubic-bezier(.2,1.6,.4,1) both; }
 .chip-flame { width: .9em; height: 1.3em; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; background: radial-gradient(circle at 50% 70%, #fff3c4, var(--c)); box-shadow: 0 0 14px var(--c); animation: sway 2.4s ease-in-out infinite; }

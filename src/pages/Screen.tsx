@@ -144,10 +144,15 @@ function Lobby({ s }: { s: PublicState | null }) {
   );
 }
 
+/** The more teams, the smaller the chips, so up to 30 always fit the projector without scrolling. */
+function chipScale(n: number) {
+  return n <= 8 ? 1 : n <= 12 ? 0.86 : n <= 16 ? 0.74 : n <= 20 ? 0.66 : n <= 25 ? 0.58 : 0.52;
+}
+
 /** Teams appear one by one as glowing "flames". Only the drawn name is shown, never participants. */
 function TeamCloud({ teams }: { teams: PublicTeam[] }) {
   return (
-    <div className="team-cloud" data-count={teams.length}>
+    <div className="team-cloud" data-count={teams.length} style={{ '--chip-scale': chipScale(teams.length) } as React.CSSProperties}>
       <div className="team-count">{teams.length === 0 ? 'מחכים לקבוצה הראשונה…' : `${teams.length} קבוצות כבר כאן`}</div>
       <div className="team-grid">
         {teams.map((t) => (

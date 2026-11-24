@@ -191,6 +191,6 @@ export const LINEUP = ['demo-sprint', 'demo-pictures', 'demo-vault', 'demo-memor
 export const TEMPLATE = {
   id: '00000000-0000-0000-0000-00000000d001',
   name: 'הרכב מומלץ · תוכן ניסיון',
-  settings: { late_grace_ms: 1500, max_teams: 20, finalists: 5, tie_breakers: ['finalPlace', 'lastRoundPoints', 'lastCorrectAt'],
+  settings: { late_grace_ms: 1500, max_teams: 30, finalists: 5, tie_breakers: ['finalPlace', 'lastRoundPoints', 'lastCorrectAt'],
               finals_params: { minFirst: 200, minSecond: 100, balancedRatio: 0.5, secondRatio: 0.5 } },
 };
