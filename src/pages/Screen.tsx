@@ -43,8 +43,12 @@ export default function Screen() {
   const offset = useServerClock(client);
   const auto = useAutoStandings(state?.round, offset);
 
-  // One click anywhere on the projector page: full screen (and the browser then allows the music too).
-  const goFull = () => { try { if (!document.fullscreenElement && !document.querySelector('.demo-shell')) document.documentElement.requestFullscreen?.().catch(() => {}); } catch { /* not allowed */ } };
+  // One click anywhere on the screen: the screen itself goes full screen (also inside the demo's split view),
+  // and that click also lets the browser start the music.
+  const goFull = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    try { if (!document.fullscreenElement) el.requestFullscreen?.().catch(() => {}); } catch { /* not allowed */ }
+  };
   return (
     <div className="screen-wrap" onClick={goFull}><div className="screen stage-16x9">
       <Embers />

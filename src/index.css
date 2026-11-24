@@ -47,7 +47,7 @@ label { display: grid; gap: .35em; font-weight: 600; }
 .flame { transition: opacity .6s ease; transform-box: fill-box; }
 .flame.off { opacity: 0; }
 .flame-glow { fill: rgba(255, 196, 87, .28); filter: blur(4px); }
-.flame-outer { fill: #f5b841; }
+.flame-outer { fill: #f5b841; transform-box: fill-box; }
 .flame-inner { fill: #fff3c4; }
 .flame.on .flame-outer { animation: sway 2.4s ease-in-out infinite; transform-origin: 50% 100%; }
 .flame.flicker { animation: flicker .9s ease-in-out infinite; }
@@ -774,3 +774,4 @@ button.mem-symbol:active { transform: scale(.92); border-color: var(--gold); bac
   background: rgba(233,185,73,.15); border: 1px solid var(--gold); color: var(--gold-soft); animation: breathe 2.4s ease-in-out infinite; }
 .music-card .row { align-items: center; gap: .8rem; }
 .music-card input[type=range] { flex: 2; accent-color: var(--gold); }
+.screen-wrap:fullscreen { width: 100vw !important; height: 100vh !important; aspect-ratio: auto !important; border-radius: 0 !important; background: var(--night); cursor: none; }
