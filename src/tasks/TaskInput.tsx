@@ -252,11 +252,6 @@ function ChoiceItems({ client, s, subs, canSubmit, onChange }: CP) {
         )}
       </section>
       <div className="pager-footer">
-        <div className={`row pager-arrows ${it.pictures ? 'hide' : ''}`}>
-          <button className="ghost small" disabled={idx === 0} onClick={() => setIdx(idx - 1)}>→ הקודם</button>
-          <span className="muted">{answered} מתוך {items.length} נבחרו</span>
-          <button className="ghost small" disabled={idx === items.length - 1} onClick={() => setIdx(idx + 1)}>הבא ←</button>
-        </div>
         <button className="primary big-cta" disabled={!canSubmit || sending || Object.keys(picked).length === 0}
                 onClick={sendAll}>{sending ? 'שולחים…' : answered < items.length ? `שליחת תשובה סופית (${answered}/${items.length})` : 'שליחת תשובה סופית'}</button>
         {err && <p className="error">{err}</p>}
