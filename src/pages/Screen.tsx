@@ -5,7 +5,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import QRCode from 'qrcode';
 import { useClient } from '../lib/clientContext';
-import { usePublicState, useServerClock, useAutoStandings } from '../lib/hooks';
+import { usePublicState, useServerClock, useAutoStandings, useTick } from '../lib/hooks';
+import { useMusic, pickTrack } from '../lib/music';
 import type { PublicState, PublicTeam } from '../lib/types';
 import { Menorah } from '../components/Menorah';
 import { Timer } from '../components/Timer';
@@ -48,8 +49,20 @@ export default function Screen() {
       {conn !== 'live' && <div className="conn-badge" aria-live="polite">{conn === 'connecting' ? 'מתחבר…' : 'מתחבר מחדש…'}</div>}
       {state?.instance.mode === 'demo' && <div className="demo-badge">משחק ניסיון</div>}
       <Swap k={viewKey(state, auto.show)} className="screen-swap"><Body s={state} offset={offset} autoStandings={auto.show} /></Swap>
+      {state && <Music s={state} offset={offset} />}
     </div></div>
   );
+}
+
+/** Background music for the room (projector only). The host controls on/off and volume. */
+function Music({ s, offset }: { s: PublicState; offset: number }) {
+  useTick(500);
+  const mem = useMemoryClock(s.round?.kind === 'sequence_memory' ? s.round : null, offset);
+  const track = pickTrack(s, Date.now() + offset, mem?.phase);
+  const m = s.instance.music ?? { on: true, volume: 60 };
+  const { needsClick, unlock } = useMusic(track, m.on, m.volume);
+  if (!m.on || !needsClick) return null;
+  return <button className="sound-unlock" onClick={unlock}>הפעלת מוזיקה</button>;
 }
 
 /** Which "screen" is showing: changing it triggers the fade-out → fade-in sequence. */

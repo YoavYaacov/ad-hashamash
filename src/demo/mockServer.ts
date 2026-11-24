@@ -106,7 +106,7 @@ export class MockServer {
     } : null;
     this.publicRow = {
       state: {
-        instance: { id: gi.id, mode: gi.mode, status: gi.status, current_round: gi.current_round, screen_view: gi.screen_view },
+        instance: { id: gi.id, mode: gi.mode, status: gi.status, current_round: gi.current_round, screen_view: gi.screen_view, music: (gi as Json).music ?? { on: true, volume: 60 } },
         teams: active.map((t) => ({ id: t.id, name: t.name, color: t.color })),
         round, standings, finals: f,
       },
@@ -182,6 +182,7 @@ export class MockServer {
         this.finals!.chosen_option = a.p_option; this.refresh(); return null;
       }
       case 'host_set_screen_view': this.requireHost(uid); this.inst!.screen_view = a.p_view; this.refresh(); return null;
+      case 'host_set_music': this.requireHost(uid); (this.inst as Json).music = { on: !!a.p_on, volume: Math.max(0, Math.min(100, a.p_volume)) }; this.refresh(); return null;
       case 'host_set_screen_item': { this.requireHost(uid); const r = this.round(this.inst!.current_round); r.screen_item = Math.max(0, Math.min(a.p_item, r.item_count - 1)); this.refresh(); return null; }
       case 'host_pin_solution': {
         this.requireHost(uid); this.round(this.inst!.current_round).pin_solution = !!a.p_pin;

@@ -279,6 +279,8 @@ function Console() {
 
       {inst?.status === 'finished' && <section className="card"><h2>המשחק הסתיים</h2></section>}
 
+      {inst && <MusicControl music={inst.music ?? { on: true, volume: 60 }} onSet={(on, volume) => act(() => rpc('host_set_music', { p_instance: inst.id, p_on: on, p_volume: volume }))} />}
+
       {inst && (
         <section className="card danger-zone">
           <h3>ניהול</h3>
@@ -433,4 +435,22 @@ function useWakeLock() {
     document.addEventListener('visibilitychange', onVis);
     return () => { document.removeEventListener('visibilitychange', onVis); try { lock?.release(); } catch { /* ignore */ } };
   }, []);
+}
+
+/** Background music on the projector: on/off and volume. */
+function MusicControl({ music, onSet }: { music: { on: boolean; volume: number }; onSet: (on: boolean, volume: number) => void }) {
+  const [vol, setVol] = useState(music.volume);
+  useEffect(() => setVol(music.volume), [music.volume]);
+  return (
+    <section className="card music-card">
+      <h3>מוזיקה במסך</h3>
+      <div className="row">
+        <button className={music.on ? 'primary grow' : 'ghost grow'} onClick={() => onSet(!music.on, vol)}>{music.on ? 'מתנגנת' : 'כבויה'}</button>
+        <input type="range" min={0} max={100} step={5} value={vol} disabled={!music.on} aria-label="עוצמה"
+               onChange={(e) => setVol(Number(e.target.value))}
+               onPointerUp={() => onSet(music.on, vol)} onKeyUp={() => onSet(music.on, vol)} onTouchEnd={() => onSet(music.on, vol)} />
+      </div>
+      {music.on && <p className="muted small">במסך צריך ללחוץ פעם אחת על "הפעלת מוזיקה".</p>}
+    </section>
+  );
 }

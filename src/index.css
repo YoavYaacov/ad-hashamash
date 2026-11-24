@@ -768,3 +768,9 @@ button.mem-symbol:active { transform: scale(.92); border-color: var(--gold); bac
 .heat-sol .diff-count { bottom: auto; top: .5cqh; inset-inline-end: auto; inset-inline-start: .5cqw; }
 .heat-sol figcaption { display: flex; align-items: center; gap: .5em; }
 .heat-sol .diff-count { position: static; font-size: .9em; }
+
+/* Music */
+.sound-unlock { position: absolute; bottom: 2cqh; left: 2cqw; z-index: 20; font-size: 1.1em; padding: .5em 1.2em; border-radius: 999px;
+  background: rgba(233,185,73,.15); border: 1px solid var(--gold); color: var(--gold-soft); animation: breathe 2.4s ease-in-out infinite; }
+.music-card .row { align-items: center; gap: .8rem; }
+.music-card input[type=range] { flex: 2; accent-color: var(--gold); }

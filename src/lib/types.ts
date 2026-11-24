@@ -30,7 +30,7 @@ export interface PublicRound {
 
 export interface PublicState {
   instance: { id: string; mode: 'demo' | 'live'; status: InstanceStatus; current_round: number | null;
-              screen_view: 'auto' | 'standings' | 'final_results' };
+              screen_view: 'auto' | 'standings' | 'final_results'; music?: { on: boolean; volume: number } };
   teams: PublicTeam[];
   round: PublicRound | null;
   standings: { team_id: string; total: number; rank: number }[] | null;
