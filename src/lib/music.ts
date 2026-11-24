@@ -14,8 +14,8 @@ const FADE_MS = 1400;
 const src = (id: TrackId) => `${import.meta.env.VITE_AUDIO_BASE ?? `${import.meta.env.BASE_URL}audio/`}${id}.mp3`;
 
 class Player {
-  private els = new Map<TrackId, HTMLAudioElement>();
-  private current: TrackId | null = null;
+  els = new Map<TrackId, HTMLAudioElement>();
+  current: TrackId | null = null;
   private master = 0.6;
   private raf = 0;
   unlocked = false;
@@ -62,7 +62,7 @@ class Player {
 }
 
 let player: Player | null = null;
-const getPlayer = () => (player ??= new Player());
+const getPlayer = () => { if (!player) { player = new Player(); (globalThis as Record<string, unknown>).__music = player; } return player; };
 
 /** Drives the player from what the screen is showing. Returns whether sound still needs one click. */
 export function useMusic(track: TrackId | null, on: boolean, volume: number) {
