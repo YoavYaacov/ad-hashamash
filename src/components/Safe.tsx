@@ -1,10 +1,11 @@
+import { useEffect, useState } from 'react';
 /**
  * Original safe illustration (SVG + CSS). States:
  *   closed  – idle, a soft glint passes over the steel
  *   fail    – shakes, the LED turns red
  *   open    – the door swings open on its hinge and golden light spills out
  */
-export type SafeState = 'closed' | 'fail' | 'open';
+export type SafeState = 'closed' | 'fail' | 'unlock' | 'open';
 
 export function SafeArt({ state, digits = '', size = 260, slots = 4 }: { state: SafeState; digits?: string; size?: number; slots?: number }) {
   return (
@@ -40,6 +41,25 @@ export function SafeArt({ state, digits = '', size = 260, slots = 4 }: { state: 
         </div>
       </div>
       <i className="safe-glint" aria-hidden="true" />
+    </div>
+  );
+}
+
+/**
+ * The success moment, staged so nothing "jumps": the safe appears closed with the code in green,
+ * the wheel spins, the door swings open, light and treasure spill out, sparks fly.
+ */
+export function OpeningSafe({ digits = '', size = 240, delay = 250 }: { digits?: string; size?: number; delay?: number }) {
+  const [st, setSt] = useState<SafeState>('unlock');
+  useEffect(() => { const t = setTimeout(() => setSt('open'), delay + 900); return () => clearTimeout(t); }, [delay]);
+  return (
+    <div className="opening-safe" style={{ width: size }}>
+      <SafeArt state={st} digits={digits} size={size} />
+      {st === 'open' && (
+        <div className="safe-sparks" aria-hidden="true">
+          {Array.from({ length: 18 }, (_, i) => <i key={i} style={{ '--a': `${i * 20}deg`, '--d': `${(i % 3) * 60}ms` } as React.CSSProperties} />)}
+        </div>
+      )}
     </div>
   );
 }

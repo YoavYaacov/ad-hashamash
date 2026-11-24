@@ -9,7 +9,7 @@ import { submitAnswer, type SubmitResult } from '../lib/submit';
 import { friendlyError } from '../lib/errors';
 import { SymbolTile } from '../components/Symbols';
 import { Scene } from '../components/Scene';
-import { SafeArt, type SafeState } from '../components/Safe';
+import { SafeArt, OpeningSafe, type SafeState } from '../components/Safe';
 import { VaultClues } from '../components/VaultClues';
 import { MemorySymbol } from '../components/MemoryArt';
 import { useMemoryClock, useStageData } from '../lib/memory';
@@ -87,6 +87,7 @@ function CodeInput({ client, s, subs, canSubmit, onChange }: CP) {
   const [code, setCode] = useState('');
   const [state, setState] = useState<SafeState>('closed');
   const [status, setStatus] = useState('');
+  const [fails, setFails] = useState(0);
   const { busy, send } = useSubmitter(client, onChange);
   const solved = solvedItems(subs).has(0);
   const used = subs.filter((x) => x.item_index === 0 && x.status !== 'late').length;
@@ -96,14 +97,16 @@ function CodeInput({ client, s, subs, canSubmit, onChange }: CP) {
     if (code.length !== 4) return;
     tap();
     const res = await send(0, { code });
-    if (res?.correct === true) { setState('open'); vibrateLong(); setStatus('הכספת נפתחה!'); }
+    if (res?.correct === true) { setState('unlock'); vibrateLong(); setTimeout(() => setState('open'), 700); }
     else if (res?.correct === false) {
-      setState('fail'); setStatus(res.attempts_left ? `קוד שגוי. נשארו ${res.attempts_left} ניסיונות.` : 'קוד שגוי. הכספת ננעלה.');
-      setTimeout(() => { setState('closed'); setCode(''); }, 900);
+      setFails((n) => n + 1); setState('fail');
+      try { navigator.vibrate?.([90, 60, 90, 60, 140]); } catch { /* unsupported */ }
+      setStatus(res.attempts_left ? `קוד שגוי. נשארו ${res.attempts_left} ניסיונות.` : 'קוד שגוי. הכספת ננעלה.');
+      setTimeout(() => { setState('closed'); setCode(''); }, 1100);
     }
   };
   if (solved || state === 'open') {
-    return <div className="vault-phone done"><SafeArt state="open" digits={code} size={230} /><p className="ok vault-status">הכספת נפתחה!</p></div>;
+    return <div className="vault-phone done"><OpeningSafe digits={code} size={230} /><p className="ok vault-status vault-win">הכספת נפתחה!</p></div>;
   }
   if (left === 0) return <div className="vault-phone done"><SafeArt state="closed" size={200} /><p className="center-msg">הכספת ננעלה</p></div>;
   return (
@@ -111,7 +114,7 @@ function CodeInput({ client, s, subs, canSubmit, onChange }: CP) {
       <VaultClues clues={c.clues ?? []} order={c.order_clue} />
       <div className="vault-pad">
         <div className="vault-side">
-          <SafeArt state={state} digits={code} size={112} />
+          <SafeArt key={fails} state={state} digits={code} size={112} />
           <p className={`vault-status ${state === 'fail' ? 'error' : 'muted'}`} role="status">{status || `${left} ניסיונות`}</p>
         </div>
         <div className="keypad" dir="ltr">

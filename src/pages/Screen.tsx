@@ -19,7 +19,7 @@ import { askFor } from '../content/asks';
 import { MemorySymbol } from '../components/MemoryArt';
 import { useMemoryClock, useStageData } from '../lib/memory';
 import { VaultClues } from '../components/VaultClues';
-import { SafeArt } from '../components/Safe';
+import { SafeArt, OpeningSafe } from '../components/Safe';
 import { StakeLines } from '../components/BetStakes';
 import type { SceneSpec } from '../content/scenes';
 
@@ -337,7 +337,7 @@ function Solution({ s }: { s: PublicState }) {
   let body: React.ReactNode = null;
   switch (sol.kind) {
     case 'code_vault':
-      body = <div className="vault-screen" style={{ gridTemplateColumns: 'auto auto', justifyContent: 'center' }}><div className="sol-code" dir="ltr">{sol.code}</div><SafeArt state="open" digits={sol.code} /></div>; break;
+      body = <div className="vault-screen" style={{ gridTemplateColumns: 'auto auto', justifyContent: 'center' }}><div className="sol-code" dir="ltr">{sol.code}</div><OpeningSafe digits={sol.code} size={260} delay={600} /></div>; break;
     case 'finale':
       body = sol.code ? <div className="sol-code" dir="ltr">{sol.code}</div> : <div className="sol-code">{sol.text?.canonical ?? sol.choice}</div>; break;
     case 'sprint': case 'video_memory':

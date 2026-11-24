@@ -775,3 +775,22 @@ button.mem-symbol:active { transform: scale(.92); border-color: var(--gold); bac
 .music-card .row { align-items: center; gap: .8rem; }
 .music-card input[type=range] { flex: 2; accent-color: var(--gold); }
 .screen-wrap:fullscreen { width: 100vw !important; height: 100vh !important; aspect-ratio: auto !important; border-radius: 0 !important; background: var(--night); cursor: none; }
+
+/* Vault: failure = a strong shake + red flash; success = staged opening (no jump) */
+@keyframes safe-shake2 { 0%,100% { transform: translateX(0) rotate(0); } 10% { transform: translateX(-12%) rotate(-4deg); } 25% { transform: translateX(11%) rotate(4deg); }
+  40% { transform: translateX(-9%) rotate(-3deg); } 55% { transform: translateX(7%) rotate(2deg); } 70% { transform: translateX(-4%) rotate(-1deg); } 85% { transform: translateX(2%); } }
+.safe-fail { animation: safe-shake2 .7s cubic-bezier(.36,.07,.19,.97) both; }
+.safe-fail::after { content: ''; position: absolute; inset: 0; border-radius: 14px; background: rgba(240,113,103,.35); box-shadow: 0 0 24px rgba(240,113,103,.7); animation: fail-flash .7s ease both; pointer-events: none; }
+@keyframes fail-flash { 0% { opacity: 0; } 20% { opacity: 1; } 100% { opacity: 0; } }
+.safe-unlock .safe-display span { color: #b8ffcb; box-shadow: inset 0 0 0 2px #6fd08c, 0 0 12px rgba(111,208,140,.8); transition: box-shadow .3s, color .3s; }
+.safe-unlock .safe-led { fill: #6fd08c; }
+.safe-unlock .safe-wheel { transform: rotate(-360deg); transition: transform .9s cubic-bezier(.4,0,.2,1); }
+.safe-unlock { animation: unlock-pulse .9s ease both; }
+@keyframes unlock-pulse { 50% { transform: scale(1.04); filter: drop-shadow(0 0 18px rgba(111,208,140,.55)); } }
+.safe-open .safe-door { transition: transform 1.4s cubic-bezier(.25,1.25,.45,1); }
+.opening-safe { position: relative; margin: 0 auto; animation: enter-up .5s ease both; }
+.safe-sparks { position: absolute; inset: 0; pointer-events: none; }
+.safe-sparks i { position: absolute; left: 50%; top: 48%; width: 7px; height: 7px; border-radius: 50%; background: #ffe7a3; box-shadow: 0 0 8px #f5b841;
+  transform: rotate(var(--a)) translateY(0); animation: spark 1.1s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(.35s + var(--d)); }
+@keyframes spark { 0% { opacity: 0; transform: rotate(var(--a)) translateY(0) scale(.4); } 15% { opacity: 1; } 100% { opacity: 0; transform: rotate(var(--a)) translateY(-130px) scale(1); } }
+.vault-win { animation: pop-name .8s cubic-bezier(.2,1.3,.4,1) 1.6s both; font-size: 1.4rem; }
