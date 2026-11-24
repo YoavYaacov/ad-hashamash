@@ -8,7 +8,7 @@ import { usePublicState, useServerClock } from '../lib/hooks';
 import { friendlyError } from '../lib/errors';
 import type { PublicState, TeamState } from '../lib/types';
 import { Timer } from '../components/Timer';
-import { APP_NAME, FINALE_NAME } from '../config';
+import { APP_NAME } from '../config';
 import { askFor } from '../content/asks';
 import { TaskInput } from '../tasks/TaskInput';
 
@@ -205,7 +205,7 @@ function InGame({ s, team, offset, onChange }: { s: PublicState; team: TeamState
     );
   }
 
-  const roundLabel = r.is_finale ? FINALE_NAME : `נר ${r.no}`;
+  const roundLabel = r.is_finale ? 'הגמר' : `נר ${r.no}`;
   const isFinalist = !r.is_finale || (r.finalists ?? []).includes(t.id);
   const showScore = score && ['intro', 'revealed', 'done'].includes(r.phase) && (r.phase !== 'intro' || r.no > 1);
 

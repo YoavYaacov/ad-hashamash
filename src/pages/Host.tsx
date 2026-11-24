@@ -201,7 +201,7 @@ function Console() {
 
       {inst?.status === 'in_progress' && r && (
         <section className="card round-card">
-          <h2>{r.is_finale ? FINALE_NAME : `סבב ${r.no} / 8`} · {r.title}</h2>
+          <h2>{r.is_finale ? 'הגמר' : `סבב ${r.no} / 8`} · {r.title}</h2>
           <div className="phase">שלב: <b>{PHASES[r.phase] ?? r.phase}</b> · {new Set(subs.filter((x) => x.status !== 'late').map((x) => x.team_id)).size}/{r.progress.total_teams} שלחו</div>
           {(r.phase === 'open' || r.phase === 'paused') && <Timer endsAt={r.ends_at} pausedMs={r.paused_remaining_ms} offset={offset} total={r.duration_sec} />}
           {r.kind === 'three_pictures' && ['open', 'paused', 'closed', 'graded'].includes(r.phase) && (

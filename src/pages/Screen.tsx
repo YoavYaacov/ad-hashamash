@@ -11,7 +11,7 @@ import type { PublicState, PublicTeam } from '../lib/types';
 import { Menorah } from '../components/Menorah';
 import { Timer } from '../components/Timer';
 import { SymbolTile } from '../components/Symbols';
-import { APP_NAME, FINALE_NAME } from '../config';
+import { APP_NAME } from '../config';
 import { Scene } from '../components/Scene';
 import { Swap } from '../components/Swap';
 import { Character, MenorahVariant } from '../components/BetArt';
@@ -175,7 +175,7 @@ function RoundView({ s, offset }: { s: PublicState; offset: number }) {
   const r = s.round!;
   const progress = useProgress(['open', 'paused', 'closed'].includes(r.phase), r.progress);
   const litBefore = Math.min(8, r.no - 1);
-  const roundLabel = r.is_finale ? FINALE_NAME : `נר ${r.no}`;
+  const roundLabel = r.is_finale ? 'הגמר' : `נר ${r.no}`;
   return (
     <div className={`round phase-${r.phase}`}>
       <header className="round-header">
