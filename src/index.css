@@ -1013,3 +1013,34 @@ input.lm-cell:disabled { opacity: .7; }
 /* Team names in the top 5: one size for all rows (leader included); shrink together only if one doesn't fit */
 .top5-row .name { font-size: calc(3.36cqw * var(--k, 1) * var(--ns, 1)); overflow: hidden; white-space: nowrap; text-overflow: clip; }
 .top5-row .name > span { display: inline-block; white-space: nowrap; }
+
+/* ── Polish pass (real-size QA: 1920×1080 projector, 360px phones) ── */
+/* Phones: never wider than the screen; respect the mobile browser bars */
+.play { min-height: 100dvh; }
+.play main > *, .task > * { min-width: 0; }
+.vault-phone { grid-template-columns: minmax(0, 1fr); }
+.vault-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.vault-pad { grid-template-columns: 104px minmax(0, 1fr); }
+.keypad { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.keypad button { min-width: 0; padding: 0; }
+.puzzle { width: min(100%, 420px); }
+.zoom { width: min(100%, 640px); }
+.puzzle-done { width: min(80%, 360px); }
+/* No lonely last word */
+p, h1, h2, h3, h4, li, .motivation, .center-msg { text-wrap: balance; }
+/* Lobby: every team chip on one line, same font for all */
+.team-grid { display: flex; flex-wrap: wrap; justify-content: center; align-content: flex-start; }
+.team-chip { white-space: nowrap; }
+/* Podium: one line per name, the three shrink together; the place numbers fit their blocks */
+.pod-name > span { display: inline-block; white-space: nowrap; }
+.pod-name { font-size: calc(2.3em * var(--pn, 1)); }
+.p1 .pod-name { font-size: calc(3.3em * var(--pn, 1)); }
+.pod-col { min-width: 0; }
+.pod-block { place-items: center; padding-top: 0; }
+.pod-block span { font-size: 8cqh; line-height: 1; }
+.p3 .pod-block { height: 14cqh; }
+/* Projector: bet stakes scale with the screen (they were in phone units) */
+.screen .stake { font-size: 1em; } .screen .stake b { font-size: 1.2em; }
+.screen .track .stakes { font-size: 1.35em; }
+.screen .track { min-width: 15em; }
+.match-clues { font-size: .95rem; line-height: 1.35; } .match-setup { font-size: 1rem; }
