@@ -164,8 +164,9 @@ const placeName = (n: number) => (ORD[n] ? `ה${ORD[n]}` : `ה־${n}`);
 const pts = (n: number) => (n === 1 ? 'נקודה אחת' : `${n.toLocaleString('he-IL')} נקודות`);
 
 /** The line under the score: chase the next place up, or (for the leader) feel the runner-up breathing down your neck. */
+const P = ({ n }: { n: number }) => <b className="pts-glow">{pts(n)}</b>;
+
 function Motivation({ score }: { score: NonNullable<TeamState['score']> }) {
-  const P = ({ n }: { n: number }) => <b className="pts-glow">{pts(n)}</b>;
   let body: React.ReactNode = null;
   if (score.rank === 1) {
     if ((score.tied ?? 0) > 0) body = <>אתם צמודים במקום הראשון!<br />כל נקודה מכריעה!</>;

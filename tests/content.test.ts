@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { TASKS, LINEUP } from '../src/content/demoContent';
 import { HEATS, buildPictures, heatAnswer, type SceneSpec } from '../src/content/scenes';
-import { solveMatching, redundantClues, gradeItem, isSolvable, type AnswerKey, makeClues } from '../supabase/functions/_shared/engine/index.ts';
+import { gradeItem, isSolvable, type AnswerKey, makeClues } from '../supabase/functions/_shared/engine/index.ts';
 
 const task = (id: string) => TASKS.find((t) => t.id === id)! as any;
 
