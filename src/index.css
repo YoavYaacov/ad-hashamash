@@ -1002,3 +1002,14 @@ input.lm-cell:disabled { opacity: .7; }
 .bet-solution .pair { font-size: 1.45em; padding: 1em .5em; }
 .bet-solution .bet-art { width: 13cqh; height: 13cqh; }
 .bet-puzzle .clues { text-align: right; }
+
+/* Top 5 with ties: never taller than the screen */
+.standings.top5 { min-height: 0; }
+.top5-list { font-size: calc(1em * var(--k, 1)); gap: calc(1.8cqh * var(--k, 1)); }
+.top5-more { text-align: center; color: var(--muted); font-size: 1.6em; }
+/* Truth sets: a little tighter so three long sets always fit */
+.fact-set { padding: .8em 1em; }
+.fact-set ol { gap: .4em; line-height: 1.28; font-size: .9em; }
+/* Team names in the top 5: one size for all rows (leader included); shrink together only if one doesn't fit */
+.top5-row .name { font-size: calc(3.36cqw * var(--k, 1) * var(--ns, 1)); overflow: hidden; white-space: nowrap; text-overflow: clip; }
+.top5-row .name > span { display: inline-block; white-space: nowrap; }

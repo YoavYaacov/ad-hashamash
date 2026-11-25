@@ -4,7 +4,7 @@
  */
 import { ClueLetter } from '../components/ClueLetter';
 import { LetterMenorah } from '../components/LetterMenorah';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import { useClient } from '../lib/clientContext';
 import { usePublicState, useServerClock, useAutoStandings, useTick } from '../lib/hooks';
@@ -18,7 +18,6 @@ import { Scene } from '../components/Scene';
 import { Swap } from '../components/Swap';
 import { Character, MenorahVariant } from '../components/BetArt';
 import { askFor } from '../content/asks';
-import { FitText } from '../components/FitText';
 import { MemorySymbol } from '../components/MemoryArt';
 import { useMemoryClock, useStageData } from '../lib/memory';
 import { VaultClues } from '../components/VaultClues';
@@ -436,23 +435,56 @@ function CountUp({ to, ms = 1400, delay = 0 }: { to: number; ms?: number; delay?
 }
 
 /** Top 5, big and centred: rows rise from the bottom (5 → 1), bars grow, points count up, the leader glows. */
+/** At most this many rows fit the projector; with ties beyond it, the rest is summed up in one line. */
+const TOP5_MAX_ROWS = 8;
+
 function Standings({ s }: { s: PublicState }) {
   const ranked = useRanked(s);
   const max = Math.max(1, ...ranked.map((r) => r.total));
-  const n = ranked.length;
+  const shown = ranked.length > TOP5_MAX_ROWS ? ranked.slice(0, TOP5_MAX_ROWS - 1) : ranked;
+  const rest = ranked.slice(shown.length);
+  const n = shown.length;
+  const rows = n + (rest.length ? 1 : 0);
+  // Ties can push more than five teams in: shrink the rows so the list always fits the screen.
+  const k = rows <= 5 ? 1 : 5 / rows;
+  const soloLeader = ranked.filter((r) => r.rank === 1).length === 1;
+  const restRank = rest.length && rest.every((r) => r.rank === rest[0].rank) ? rest[0].rank : null;
+  // One name size for every row: if any name is too long, all names shrink together.
+  const listRef = useRef<HTMLDivElement>(null);
+  const namesKey = shown.map((r) => r.team?.name).join('|');
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    if (!list) return;
+    const fit = () => {
+      list.style.setProperty('--ns', '1');
+      let ns = 1;
+      list.querySelectorAll<HTMLElement>('.top5-row .name').forEach((box) => {
+        const text = box.firstElementChild as HTMLElement | null;
+        if (text && text.scrollWidth > box.clientWidth) ns = Math.min(ns, box.clientWidth / text.scrollWidth);
+      });
+      list.style.setProperty('--ns', String(Math.max(0.5, ns * 0.98)));
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(list);
+    return () => ro.disconnect();
+  }, [namesKey, k]);
   return (
     <div className="standings top5">
       <ClueLetter clue={s.round?.clue} where="screen" />
       <h2 className="top5-title">חמש המובילות</h2>
-      <div className="top5-list">
-        {ranked.map((r, i) => (
-          <div key={r.team_id} className={`top5-row ${r.rank === 1 ? 'leader' : ''}`} style={{ '--c': r.team?.color, '--i': n - 1 - i } as React.CSSProperties}>
+      <div ref={listRef} className="top5-list" style={{ '--k': k } as React.CSSProperties}>
+        {shown.map((r, i) => (
+          <div key={r.team_id} className={`top5-row ${r.rank === 1 && soloLeader ? 'leader' : ''}`} style={{ '--c': r.team?.color, '--i': n - 1 - i } as React.CSSProperties}>
             <span className="rank">{r.rank}</span>
-            <span className="name"><FitText>{r.team?.name}</FitText></span>
+            <span className="name"><span>{r.team?.name}</span></span>
             <span className="bar"><span style={{ width: `${(100 * r.total) / max}%` }} /></span>
             <span className="pts"><CountUp to={r.total} delay={(n - 1 - i) * 220 + 300} /></span>
           </div>
         ))}
+        {rest.length > 0 && (
+          <div className="top5-more">ועוד {rest.length} קבוצות{restRank ? ` במקום ${restRank}` : ''}</div>
+        )}
       </div>
     </div>
   );
