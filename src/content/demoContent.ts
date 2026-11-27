@@ -29,7 +29,8 @@ const ORDER_ITEMS = [
 ];
 const ORDER_SHOWN = ['e', 'b', 'f', 'a', 'd', 'c'];
 
-// Candle memory (approved): six new, independent sequences of 3–8 symbols; repeats allowed.
+// Candle memory: five independent sequences of 3–7 symbols; repeats allowed.
+// Shortened after the first class run (the six-stage version took almost 5 minutes).
 const MEMORY_SYMBOLS = ['candle', 'dreidel', 'sufganiya', 'oil_jar', 'menorah', 'coin', 'latke'];
 const MEMORY_STAGES = [
   ['dreidel', 'sufganiya', 'candle'],
@@ -37,10 +38,9 @@ const MEMORY_STAGES = [
   ['oil_jar', 'candle', 'coin', 'sufganiya', 'menorah'],
   ['latke', 'dreidel', 'oil_jar', 'candle', 'latke', 'coin'],
   ['menorah', 'coin', 'sufganiya', 'dreidel', 'oil_jar', 'candle', 'sufganiya'],
-  ['candle', 'latke', 'menorah', 'oil_jar', 'coin', 'dreidel', 'latke', 'sufganiya'],
 ];
-const MEMORY_TIMING = { intro_ms: 3000, show_ms: 3500, recall_ms: 20000, result_ms: 6000 };
-const MEMORY_POINTS = [25, 35, 45, 55, 65, 75];
+const MEMORY_TIMING = { intro_ms: 2500, show_ms: 3500, recall_ms: 15000, result_ms: 4000 };
+const MEMORY_POINTS = [30, 45, 60, 75, 90];
 
 // Vault (approved riddles). Cards are shown in this order (not the solution order).
 // The letter on each card is editable data; the code is derived: digits in dreidel order נ ג ה פ.
@@ -122,7 +122,7 @@ export const TASKS: TaskDef[] = [
         'יהודה המכבי נהרג בקרב על חומות ירושלים, ביום חנוכת המקדש.',
       ] },
     ] },
-    duration_sec: 150, scoring: { method: 'per_item', points: 100 }, attempts_limit: 1, settings: {},
+    duration_sec: 120, scoring: { method: 'per_item', points: 100 }, attempts_limit: 1, settings: {},
     answer_key: { kind: 'truth_or_fiction', items: [{ choice: '3' }, { choice: '1' }, { choice: '4' }] },
   },
   {
@@ -136,7 +136,7 @@ export const TASKS: TaskDef[] = [
     id: 'demo-slide', idea_no: 26, kind: 'sliding_puzzle', title: 'פאזל ההחלקה',
     instructions: 'נציג אחד מכל קבוצה. מזיזים אריחים אל המשבצת הריקה עד שהתמונה מסודרת. מי שמסיים מהר יותר מקבל יותר נקודות.',
     public_content: { start: [7, 3, 6, 2, 0, 8, 1, 4, 5], scene: PUZZLE_SCENE },
-    duration_sec: 240, scoring: { method: 'time_linear', points: 300, minRatio: 0.3 }, attempts_limit: 1, settings: {},
+    duration_sec: 180, scoring: { method: 'time_linear', points: 300, minRatio: 0.3 }, attempts_limit: 1, settings: {},
     answer_key: { kind: 'sliding_puzzle', start: [7, 3, 6, 2, 0, 8, 1, 4, 5] },
   },
   {
@@ -161,7 +161,7 @@ export const TASKS: TaskDef[] = [
         'יוסף לא מדליק בחנוכיית החימר.',
       ],
     },
-    duration_sec: 240, scoring: { method: 'bet' }, attempts_limit: 1,
+    duration_sec: 210, scoring: { method: 'bet' }, attempts_limit: 1,
     settings: { bet: { baseMethod: 'average_floor100', minBase: 100, defaultTrack: 'safe', tracks: [
       { id: 'safe', label: 'זהיר', winMultiplier: 0.5, lossMultiplier: 0 },
       { id: 'mid', label: 'נועז', winMultiplier: 1, lossMultiplier: 0.5 },

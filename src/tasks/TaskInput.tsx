@@ -444,10 +444,14 @@ function Matching({ client, s, subs, canSubmit, onChange }: CP) {
   const peopleArt: CharacterId[] = c.people_art ?? [];
   const itemsArt: MenorahId[] = c.items_art ?? [];
   const clues: string[] = c.clues ?? [];
+  // Both rows can be dragged: people can be seated in any order (to think it through),
+  // and each menorah is paired with whoever stands above it. Only the pairs are graded.
+  const [who, setWho] = useState<string[]>(() => people.map((_, i) => String(i)));
   const [order, setOrder] = useState<string[]>(() => items.map((_, j) => String(j)));
   const { busy, msg, send } = useSubmitter(client, onChange);
   if (submittedItems(subs).has(0)) return <p className="center-msg ok">נשלח</p>;
-  const assignment = order.map(Number);
+  const assignment: number[] = Array(people.length).fill(0);
+  who.forEach((p, k) => { assignment[Number(p)] = Number(order[k]); });
   const n = people.length;
   return (
     <div className="task matching">
@@ -455,16 +459,15 @@ function Matching({ client, s, subs, canSubmit, onChange }: CP) {
         {c.setup && <p className="match-setup">{c.setup}</p>}
         {clues.length > 0 && <ol>{clues.map((cl, i) => <li key={i}>{cl}</li>)}</ol>}
       </div>
-      <p className="drag-hint">גוררים כל חנוכייה אל מתחת למי שבחר בה<small>הסדר כאן הוא לא סדר הישיבה</small></p>
+      <p className="drag-hint">גוררים את בני המשפחה ואת החנוכיות<small>כל חנוכייה שייכת למי שעומד מעליה</small></p>
       <div className="match-board h" style={{ '--n': n } as React.CSSProperties}>
-        <ol className="match-people h" aria-label="בני המשפחה">
-          {people.map((p, i) => (
-            <li key={i} className="person">
-              {peopleArt[i] && <Character id={peopleArt[i]} size={40} />}
-              <span>{p}</span>
-            </li>
-          ))}
-        </ol>
+        <Sortable ids={who} onChange={setWho} axis="x" className="match-items match-who" disabled={!canSubmit} label="בני המשפחה"
+                  render={(id) => (
+                    <span className="menorah-card person-card">
+                      {peopleArt[Number(id)] && <Character id={peopleArt[Number(id)]} size={40} />}
+                      <span>{people[Number(id)]}</span>
+                    </span>
+                  )} />
         <Sortable ids={order} onChange={setOrder} axis="x" className="match-items" disabled={!canSubmit} label="החנוכיות"
                   render={(id) => (
                     <span className="menorah-card">

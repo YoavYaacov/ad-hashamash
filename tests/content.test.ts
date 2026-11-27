@@ -49,16 +49,17 @@ describe('trial content is self-consistent', () => {
     expect(t.public_content.heats.every((h: any) => !('marks' in h))).toBe(true);   // never before the reveal
   });
 
-  it('memory: six new sequences of 3..8, 3.5 s per symbol, 20 s recall, 25..75 = 300', () => {
+  it('memory: five sequences of 3..7, 3.5 s per symbol, 15 s recall, 30..90 = 300, about 3 minutes', () => {
     const t = task('demo-memory');
     const stages = t.answer_key.stages as string[][];
-    expect(stages.map((x) => x.length)).toEqual([3, 4, 5, 6, 7, 8]);
-    expect(t.public_content.stage_lengths).toEqual([3, 4, 5, 6, 7, 8]);
+    expect(stages.map((x) => x.length)).toEqual([3, 4, 5, 6, 7]);
+    expect(t.public_content.stage_lengths).toEqual([3, 4, 5, 6, 7]);
+    expect(t.duration_sec).toBeLessThanOrEqual(200);
     expect(JSON.stringify(t.public_content)).not.toContain('sufganiya","candle');   // sequences are not public
     expect(t.public_content.stages).toBeUndefined();
     stages.flat().forEach((id) => expect(t.public_content.symbols).toContain(id));
-    expect(t.settings.memory).toMatchObject({ show_ms: 3500, recall_ms: 20000 });
-    expect(t.scoring.points_by_stage).toEqual([25, 35, 45, 55, 65, 75]);
+    expect(t.settings.memory).toMatchObject({ show_ms: 3500, recall_ms: 15000 });
+    expect(t.scoring.points_by_stage).toEqual([30, 45, 60, 75, 90]);
     expect(t.scoring.points_by_stage.reduce((a: number, b: number) => a + b, 0)).toBe(300);
   });
 

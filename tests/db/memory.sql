@@ -22,7 +22,7 @@ select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a1
 select public.host_round_action((select v::uuid from t.ctx where k = 'inst'), 4, 'open');
 reset role;
 
-select t.ok((select r.public_payload -> 'stages' is null and r.public_payload -> 'stage_lengths' = '[3,4,5,6,7,8]'::jsonb
+select t.ok((select r.public_payload -> 'stages' is null and r.public_payload -> 'stage_lengths' = '[3,4,5,6,7]'::jsonb
              from public.rounds r where round_no = 4), 'memory: sequences are not in the public payload');
 select t.ok((select not (state -> 'round' -> 'content' ? 'stages') and position('"stages"' in state::text) = 0 from public.public_state), 'memory: no sequence on the screen state');
 set role anon;
@@ -39,12 +39,12 @@ set role service_role;
 select t.fails($q$select public.svc_record_submission('00000000-0000-0000-0000-0000000000b1', gen_random_uuid(), 0, '{"sequence":["dreidel","sufganiya","candle"]}')$q$,
                'stage_not_open', 'no answers while the sequence is still showing');
 reset role;
--- recall window of stage 1: 3 + 3×3.5 = 13.5 s .. 33.5 s
+-- recall window of stage 1: 2.5 + 3×3.5 = 13 s .. 28 s
 update public.rounds set opened_at = clock_timestamp() - interval '15 seconds' where round_no = 4;
 set role service_role;
 select t.ok((public.svc_record_submission('00000000-0000-0000-0000-0000000000b1', gen_random_uuid(), 0, '{"sequence":["dreidel","sufganiya","candle"]}')
              -> 'submission' ->> 'status') = 'received', 'stage 1 answer accepted inside the window');
-select public.svc_apply_grade((select id from public.submissions where round_no = 4 and item_index = 0 and team_id = (select team_id from public.team_devices where user_id = '00000000-0000-0000-0000-0000000000b1')), '{"correct":true}', 1, 25, false);
+select public.svc_apply_grade((select id from public.submissions where round_no = 4 and item_index = 0 and team_id = (select team_id from public.team_devices where user_id = '00000000-0000-0000-0000-0000000000b1')), '{"correct":true}', 1, 30, false);
 select t.ok((public.svc_record_submission('00000000-0000-0000-0000-0000000000b2', gen_random_uuid(), 0, '{"sequence":["candle"]}')
              -> 'submission' ->> 'status') = 'received', 'second team answers stage 1');
 select public.svc_apply_grade((select id from public.submissions where round_no = 4 and item_index = 0 and team_id = (select team_id from public.team_devices where user_id = '00000000-0000-0000-0000-0000000000b2')), '{"correct":false}', 0, 0, false);
@@ -56,7 +56,7 @@ update public.rounds set opened_at = clock_timestamp() - interval '36 seconds' w
 set role anon;
 select t.ok((public.memory_stage((select v::uuid from t.ctx where k='inst'), 0) ->> 'passed')::int = 1, 'pass count released after the window');
 reset role;
--- stage 2 window: 39.5 + 3 + 4×3.5 = 56.5 .. 76.5 s
+-- stage 2 window: 32 + 2.5 + 4×3.5 = 48.5 .. 63.5 s
 update public.rounds set opened_at = clock_timestamp() - interval '60 seconds' where round_no = 4;
 set role service_role;
 select t.fails($q$select public.svc_record_submission('00000000-0000-0000-0000-0000000000b2', gen_random_uuid(), 1, '{"sequence":["coin"]}')$q$,
@@ -69,7 +69,7 @@ set role service_role;
 select t.fails($q$select public.svc_record_submission('00000000-0000-0000-0000-0000000000b1', gen_random_uuid(), 2, '{"sequence":["x"]}')$q$,
                'stage_not_open', 'cannot answer a future stage');
 reset role;
-select t.ok((select sum(points) from public.score_events where round_no = 4) = 25, 'stage 1 = 25 points, failed team keeps its points (0)');
+select t.ok((select sum(points) from public.score_events where round_no = 4) = 30, 'stage 1 = 30 points, failed team keeps its points (0)');
 
 \o
 \echo 'MEMORY CHECKS PASSED'

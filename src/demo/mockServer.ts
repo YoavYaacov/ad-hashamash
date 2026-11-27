@@ -201,6 +201,14 @@ export class MockServer {
         this.refresh(); return null;
       }
       case 'host_round_action': return this.roundAction(uid, a.p_round, a.p_action);
+      case 'host_last_call': {
+        this.requireHost(uid);
+        const r = this.round(a.p_round); const tt = this.task(r);
+        if (this.inst?.current_round !== a.p_round || r.phase !== 'open' || !r.ends_at || tt.kind === 'sequence_memory') return r.ends_at;
+        const end = Math.min(Date.parse(r.ends_at), Date.now() + Math.max(10, Math.min(a.p_seconds, 120)) * 1000);
+        if (end < Date.parse(r.ends_at)) { r.ends_at = new Date(end).toISOString(); this.refresh(); }
+        return r.ends_at;
+      }
       case 'host_next_round': {
         this.requireHost(uid);
         const gi = this.inst!, r = this.round(gi.current_round);

@@ -53,7 +53,7 @@ function Login() {
   );
 }
 
-interface Sub { id: number; team_id: string; item_index: number; attempt_no: number; status: string; ratio: number | null; payload: any; received_at: string }
+interface Sub { id: number; team_id: string; round_no: number; item_index: number; attempt_no: number; status: string; ratio: number | null; payload: any; received_at: string }
 
 function Console() {
   const client = useClient('host');
@@ -78,7 +78,7 @@ function Console() {
     const tm = await client.from('teams').select('id, name, color, members, status').eq('instance_id', inst.id).order('created_at');
     setTeams(tm.data ?? []);
     if (inst.current_round) {
-      const s = await client.from('submissions').select('id, team_id, item_index, attempt_no, status, ratio, payload, received_at')
+      const s = await client.from('submissions').select('id, team_id, round_no, item_index, attempt_no, status, ratio, payload, received_at')
         .eq('instance_id', inst.id).eq('round_no', inst.current_round).order('received_at');
       setSubs(s.data ?? []);
       setReview((s.data ?? []).filter((x) => x.status === 'needs_review'));
@@ -126,16 +126,21 @@ function Console() {
 
 /** How long the projector shows the opening promise before round 1, and the lit finale word before the winners. */
   const PROMISE_MS = 8000, FINALE_TO_WINNERS_MS = 9000;
+  /** Last call: when this share of the teams has finished, the rest get LAST_CALL_SEC seconds. */
+  const LAST_CALL_SHARE = 0.7, LAST_CALL_SEC = 30;
   // ── Automatic flow (runs on the host phone): time up / everyone finished → close → grade → reveal.
   // Only decisions that matter stay manual: opening a round, uncertain answers, next round, finals.
   useTick(1000);
   useWakeLock();
   const autoDone = useRef(new Set<string>());
   const lastGrade = useRef(0);
-  const activeTeams = teams.filter((t) => t.status === 'active');
+  // In the finale only the finalists play; everyone else is watching.
+  // Only this round's submissions (the list from the previous round may linger for a moment).
+  const curSubs = subs.filter((x) => x.round_no === r?.no);
+  const activeTeams = teams.filter((t) => t.status === 'active' && (r?.no !== 9 || !r.finalists || r.finalists.includes(t.id)));
   const memNow = useMemoryClock(r?.kind === 'sequence_memory' ? r : null, offset);
-  const allDone = !!r && activeTeams.length > 0 && activeTeams.every((t) => teamFinished(r, subs.filter((x) => x.team_id === t.id && x.status !== 'late'), memNow));
-  const doneCount = r ? activeTeams.filter((t) => teamFinished(r, subs.filter((x) => x.team_id === t.id && x.status !== 'late'), memNow)).length : 0;
+  const allDone = !!r && activeTeams.length > 0 && activeTeams.every((t) => teamFinished(r, curSubs.filter((x) => x.team_id === t.id && x.status !== 'late'), memNow));
+  const doneCount = r ? activeTeams.filter((t) => teamFinished(r, curSubs.filter((x) => x.team_id === t.id && x.status !== 'late'), memNow)).length : 0;
   const [autoNote, setAutoNote] = useState('');
   useEffect(() => {
     if (!inst || !r || inst.status !== 'in_progress' || busy) return;
@@ -144,6 +149,20 @@ function Console() {
     if (r.phase === 'open') {
       const ends = r.ends_at ? Date.parse(r.ends_at) : null;
       const timeUp = ends != null && Date.now() + offset >= ends + 800;
+      // Finale: the prizes go to the first two solvers; once they are in, end it.
+      const finaleDecided = r.no === 9 && new Set(curSubs.filter((x) => Number(x.ratio) === 1).map((x) => x.team_id)).size >= 2;
+      if (finaleDecided && !timeUp) once(':close', () => {
+        setAutoNote('שתי הקבוצות הראשונות פתרו');
+        setTimeout(() => act(() => rpc('host_round_action', { p_instance: inst.id, p_round: r.no, p_action: 'close' })), 4000);
+      });
+      // Last call: once most teams are done, the stragglers get a short countdown instead of minutes.
+      const left = ends != null ? (ends - (Date.now() + offset)) / 1000 : 0;
+      const need = Math.max(2, Math.ceil(activeTeams.length * LAST_CALL_SHARE));
+      if (!timeUp && !allDone && r.kind !== 'sequence_memory' && r.no !== 9 && doneCount >= need && left > LAST_CALL_SEC + 5)
+        once(':lastcall', () => {
+          setAutoNote(`רוב הקבוצות סיימו: עוד ${LAST_CALL_SEC} שניות`);
+          act(() => rpc('host_last_call', { p_instance: inst.id, p_round: r.no, p_seconds: LAST_CALL_SEC }));
+        });
       if (timeUp || allDone) once(':close', () => {
         setAutoNote(timeUp ? 'הזמן נגמר' : 'כל הקבוצות סיימו');
         setTimeout(() => act(() => rpc('host_round_action', { p_instance: inst.id, p_round: r.no, p_action: 'close' })), allDone && !timeUp ? 1500 : 0);
@@ -432,7 +451,8 @@ function teamFinished(r: { kind: string; item_count: number }, mine: Sub[], mem?
   const solved = mine.some((x) => Number(x.ratio) === 1);
   switch (r.kind) {
     case 'code_vault': return solved || mine.length >= 3;
-    case 'finale': case 'sliding_puzzle': case 'ordering': case 'bet_puzzle': return true;
+    case 'finale': return solved || mine.length >= 5;
+    case 'sliding_puzzle': case 'ordering': case 'bet_puzzle': return true;
     case 'sequence_memory': return mine.some((x) => x.ratio != null && Number(x.ratio) === 0) || new Set(mine.map((x) => x.item_index)).size >= r.item_count;
     case 'symbols': return new Set(mine.filter((x) => Number(x.ratio) === 1).map((x) => x.item_index)).size >= r.item_count;
     default: return new Set(mine.map((x) => x.item_index)).size >= r.item_count;
